@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { List, Divider, Dialog, Portal, Avatar } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui';
 import { colors, typography, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 
 const SettingsScreen = () => {
   const { user, logout, loading } = useAuth();
+  const insets = useSafeAreaInsets();
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
 
   const handleLogout = async () => {
@@ -24,7 +26,7 @@ const SettingsScreen = () => {
   return (
     <ScrollView style={styles.container}>
       {/* Header con información del usuario */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
         <Avatar.Icon
           size={80}
           icon="account"
@@ -164,7 +166,8 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
     backgroundColor: colors.surface,
     marginBottom: spacing.md,
   },

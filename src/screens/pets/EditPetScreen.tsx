@@ -26,6 +26,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePetStore } from '../../store/petStore';
 import { PetsStackParamList } from '../../types';
 import { z } from 'zod';
+import { StackActions } from '@react-navigation/native';
 
 type EditPetRouteProp = RouteProp<PetsStackParamList, 'EditPet'>;
 type EditPetNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'EditPet'>;
@@ -36,7 +37,7 @@ const EditPetScreen = () => {
   const navigation = useNavigation<EditPetNavigationProp>();
   const route = useRoute<EditPetRouteProp>();
   const { user } = useAuthStore();
-  const { pets, updateExistingPet } = usePetStore();
+  const { pets, updateExistingPet, removePet } = usePetStore();
   
   const { petId } = route.params;
   const pet = pets.find((p) => p.id === petId);
@@ -170,6 +171,42 @@ const EditPetScreen = () => {
     if (selectedDate) {
       setValue('birthDate', selectedDate);
     }
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Eliminar Mascota',
+      `¿Estás seguro de que deseas eliminar a ${pet.name}? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user) return;
+            try {
+              setLoading(true);
+              await removePet(user.uid, pet.id);
+              Alert.alert('Eliminado', 'Mascota eliminada correctamente', [
+                { 
+                  text: 'OK', 
+                  onPress: () => {
+                    // Navegar a la lista de mascotas eliminando todas las pantallas intermedias
+                    navigation.dispatch(
+                      StackActions.replace('PetsList')
+                    );
+                  }
+                },
+              ]);
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo eliminar la mascota');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -350,6 +387,20 @@ const EditPetScreen = () => {
             >
               Cancelar
             </Button>
+            
+            {/* Botón Eliminar */}
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+              disabled={loading}
+            >
+              <MaterialCommunityIcons
+                name="delete"
+                size={20}
+                color={colors.error}
+              />
+              <Text style={styles.deleteText}>Eliminar Mascota</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -424,10 +475,26 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   submitButton: {
     marginBottom: spacing.sm,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.error,
+    backgroundColor: colors.background,
+  },
+  deleteText: {
+    ...typography.button,
+    color: colors.error,
+    marginLeft: spacing.sm,
   },
 });
 

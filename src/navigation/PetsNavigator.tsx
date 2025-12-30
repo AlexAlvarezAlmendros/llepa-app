@@ -8,6 +8,8 @@ import AddPetScreen from '../screens/pets/AddPetScreen';
 import EditPetScreen from '../screens/pets/EditPetScreen';
 import HealthHistoryScreen from '../screens/health/HealthHistoryScreen';
 import AddVisitScreen from '../screens/health/AddVisitScreen';
+import VaccinesScreen from '../screens/health/VaccinesScreen';
+import AddVaccineScreen from '../screens/health/AddVaccineScreen';
 
 const Stack = createNativeStackNavigator<PetsStackParamList>();
 
@@ -54,6 +56,16 @@ const PetsNavigator = () => {
         name="AddVisit"
         component={AddVisitScreen}
         options={{ title: 'Nueva Visita' }}
+      />
+      <Stack.Screen
+        name="Vaccines"
+        component={VaccinesScreen}
+        options={{ title: 'Vacunas' }}
+      />
+      <Stack.Screen
+        name="AddVaccine"
+        component={AddVaccineScreen}
+        options={{ title: 'Nueva Vacuna' }}
       />
     </Stack.Navigator>
   );

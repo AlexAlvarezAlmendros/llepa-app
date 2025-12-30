@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   submitButton: {
     marginBottom: spacing.sm,

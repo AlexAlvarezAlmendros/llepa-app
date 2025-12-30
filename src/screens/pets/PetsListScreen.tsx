@@ -94,6 +94,7 @@ const PetsListScreen = () => {
                 mode="flat"
                 style={styles.chip}
                 textStyle={styles.chipText}
+                compact
               >
                 {item.species}
               </Chip>
@@ -263,7 +264,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   chip: {
-    height: 28,
     backgroundColor: colors.primary + '15',
     marginRight: spacing.sm,
   },
@@ -271,6 +271,8 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontSize: 12,
     color: colors.primary,
+    marginVertical: 0,
+    paddingVertical: 0,
   },
   ageText: {
     ...typography.body,
@@ -304,7 +306,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: spacing.lg + 70,
+    bottom: spacing.lg,
     backgroundColor: colors.primary,
   },
 });

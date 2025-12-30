@@ -57,32 +57,15 @@ const PetDetailScreen = () => {
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Eliminar Mascota',
-      `¿Estás seguro de que deseas eliminar a ${pet.name}? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            if (!user) return;
-            try {
-              setLoading(true);
-              await removePet(user.uid, pet.id);
-              Alert.alert('Eliminado', 'Mascota eliminada correctamente', [
-                { text: 'OK', onPress: () => navigation.goBack() },
-              ]);
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar la mascota');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const getBreedIcon = (species: string) => {
+    switch (species) {
+      case 'Perro':
+        return 'dog-side';
+      case 'Gato':
+        return 'cat';
+      default:
+        return 'dna';
+    }
   };
 
   return (
@@ -91,7 +74,7 @@ const PetDetailScreen = () => {
         {/* Header con Foto */}
         <View style={[styles.header, { paddingTop: insets.top }]}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { top: insets.top + spacing.md }]}
             onPress={() => navigation.goBack()}
           >
             <MaterialCommunityIcons
@@ -102,7 +85,7 @@ const PetDetailScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.editButton}
+            style={[styles.editButton, { top: insets.top + spacing.md }]}
             onPress={() => navigation.navigate('EditPet', { petId: pet.id })}
           >
             <MaterialCommunityIcons
@@ -151,7 +134,7 @@ const PetDetailScreen = () => {
 
           <View style={styles.infoRow}>
             <MaterialCommunityIcons
-              name="dog-side"
+              name={getBreedIcon(pet.species)}
               size={20}
               color={colors.textSecondary}
               style={styles.infoIcon}
@@ -206,45 +189,57 @@ const PetDetailScreen = () => {
           )}
         </Card>
 
-        {/* Sección Salud (Placeholder) */}
+        {/* Sección Salud */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Historial Médico</Text>
           <Divider style={styles.divider} />
           
-          <List.Item
-            title="Visitas Veterinarias"
-            description="Ver historial completo"
-            left={(props) => <List.Icon {...props} icon="hospital-box" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {
-              Alert.alert('Próximamente', 'Función en desarrollo (Fase 3)');
-            }}
-          />
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => navigation.navigate('HealthHistory', { petId: pet.id })}
+          >
+            <View style={styles.listItemContent}>
+              <MaterialCommunityIcons
+                name="hospital-box"
+                size={24}
+                color={colors.primary}
+                style={styles.listIcon}
+              />
+              <View style={styles.listTextContainer}>
+                <Text style={styles.listTitle}>Visitas Veterinarias</Text>
+                <Text style={styles.listDescription}>Ver historial completo</Text>
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={colors.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
           
-          <List.Item
-            title="Vacunas"
-            description="Gestionar calendario de vacunas"
-            left={(props) => <List.Icon {...props} icon="needle" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {
-              Alert.alert('Próximamente', 'Función en desarrollo (Fase 3)');
-            }}
-          />
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => navigation.navigate('Vaccines', { petId: pet.id })}
+          >
+            <View style={styles.listItemContent}>
+              <MaterialCommunityIcons
+                name="needle"
+                size={24}
+                color={colors.primary}
+                style={styles.listIcon}
+              />
+              <View style={styles.listTextContainer}>
+                <Text style={styles.listTitle}>Vacunas</Text>
+                <Text style={styles.listDescription}>Gestionar calendario de vacunas</Text>
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={colors.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
         </Card>
-
-        {/* Botón Eliminar */}
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={handleDelete}
-          disabled={loading}
-        >
-          <MaterialCommunityIcons
-            name="delete"
-            size={20}
-            color={colors.error}
-          />
-          <Text style={styles.deleteText}>Eliminar Mascota</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -351,21 +346,29 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 2,
   },
-  deleteButton: {
+  listItem: {
+    paddingVertical: spacing.sm,
+  },
+  listItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.error,
+    paddingVertical: spacing.xs,
   },
-  deleteText: {
+  listIcon: {
+    marginRight: spacing.md,
+  },
+  listTextContainer: {
+    flex: 1,
+  },
+  listTitle: {
     ...typography.button,
-    color: colors.error,
-    marginLeft: spacing.sm,
+    color: colors.textPrimary,
+    fontSize: 16,
+  },
+  listDescription: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });
 

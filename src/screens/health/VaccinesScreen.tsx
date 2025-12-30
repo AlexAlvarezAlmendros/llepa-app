@@ -7,63 +7,63 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { FAB } from 'react-native-paper';
+import { FAB, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, typography, spacing } from '../../constants/theme';
 import { Card, Loading } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
-import { getPetVisits, deleteVisit } from '../../services/vetVisitService';
-import { VetVisit, PetsStackParamList } from '../../types';
+import { getPetVaccines, deleteVaccine, getVaccineStatus } from '../../services/vaccineService';
+import { Vaccine, PetsStackParamList } from '../../types';
 
-type HealthHistoryRouteProp = RouteProp<PetsStackParamList, 'HealthHistory'>;
-type HealthHistoryNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'HealthHistory'>;
+type VaccinesRouteProp = RouteProp<PetsStackParamList, 'Vaccines'>;
+type VaccinesNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'Vaccines'>;
 
-const HealthHistoryScreen = () => {
-  const route = useRoute<HealthHistoryRouteProp>();
-  const navigation = useNavigation<HealthHistoryNavigationProp>();
+const VaccinesScreen = () => {
+  const route = useRoute<VaccinesRouteProp>();
+  const navigation = useNavigation<VaccinesNavigationProp>();
   const { user } = useAuthStore();
   const { petId } = route.params;
   
-  const [visits, setVisits] = useState<VetVisit[]>([]);
+  const [vaccines, setVaccines] = useState<Vaccine[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadVisits = async () => {
+  const loadVaccines = async () => {
     if (!user) return;
     
     try {
-      const visitsList = await getPetVisits(user.uid, petId);
-      setVisits(visitsList);
+      const vaccinesList = await getPetVaccines(user.uid, petId);
+      setVaccines(vaccinesList);
     } catch (error) {
-      console.error('Error cargando visitas:', error);
-      Alert.alert('Error', 'No se pudieron cargar las visitas');
+      console.error('Error cargando vacunas:', error);
+      Alert.alert('Error', 'No se pudieron cargar las vacunas');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // Cargar visitas cuando la pantalla gana foco (después de crear/editar)
+  // Cargar vacunas cuando la pantalla gana foco (después de crear/editar)
   useFocusEffect(
     useCallback(() => {
       if (user) {
         setLoading(true);
-        loadVisits();
+        loadVaccines();
       }
     }, [user, petId])
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadVisits();
+    loadVaccines();
   };
 
-  const handleDelete = (visitId: string, visitDate: string) => {
+  const handleDelete = (vaccineId: string, vaccineName: string) => {
     Alert.alert(
-      'Eliminar Visita',
-      `¿Estás seguro de eliminar la visita del ${visitDate}?`,
+      'Eliminar Vacuna',
+      `¿Estás seguro de eliminar ${vaccineName}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -72,11 +72,11 @@ const HealthHistoryScreen = () => {
           onPress: async () => {
             if (!user) return;
             try {
-              await deleteVisit(user.uid, petId, visitId);
-              setVisits(visits.filter((v) => v.id !== visitId));
-              Alert.alert('Eliminado', 'Visita eliminada correctamente');
+              await deleteVaccine(user.uid, petId, vaccineId);
+              setVaccines(vaccines.filter((v) => v.id !== vaccineId));
+              Alert.alert('Eliminado', 'Vacuna eliminada correctamente');
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar la visita');
+              Alert.alert('Error', 'No se pudo eliminar la vacuna');
             }
           },
         },
@@ -84,42 +84,64 @@ const HealthHistoryScreen = () => {
     );
   };
 
-  const renderVisitCard = ({ item }: { item: VetVisit }) => {
-    const visitDate = item.date.toDate().toLocaleDateString('es-ES', {
+  const getStatusInfo = (status: 'valid' | 'upcoming' | 'expired') => {
+    switch (status) {
+      case 'valid':
+        return {
+          label: 'Vigente',
+          color: colors.success,
+          icon: 'check-circle' as const,
+        };
+      case 'upcoming':
+        return {
+          label: 'Próxima',
+          color: '#F59E0B',
+          icon: 'alert-circle' as const,
+        };
+      case 'expired':
+        return {
+          label: 'Vencida',
+          color: colors.error,
+          icon: 'close-circle' as const,
+        };
+    }
+  };
+
+  const renderVaccineCard = ({ item }: { item: Vaccine }) => {
+    const administeredDate = item.administeredDate.toDate().toLocaleDateString('es-ES', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
     });
 
+    const status = getVaccineStatus(item);
+    const statusInfo = getStatusInfo(status);
+
     return (
-      <Card style={styles.visitCard}>
+      <Card style={styles.vaccineCard}>
         <View style={styles.cardHeader}>
           <View style={styles.headerLeft}>
             <MaterialCommunityIcons
-              name="hospital-box"
+              name="needle"
               size={24}
               color={colors.primary}
             />
             <View style={styles.headerInfo}>
-              <Text style={styles.visitDate}>{visitDate}</Text>
-              {item.clinicName && (
-                <Text style={styles.clinicName}>{item.clinicName}</Text>
-              )}
+              <Text style={styles.vaccineName}>{item.name}</Text>
+              <Text style={styles.vaccineDate}>{administeredDate}</Text>
             </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('AddVisit', { petId, visitId: item.id })}
-              style={styles.editButton}
+          <View style={styles.headerRight}>
+            <Chip
+              icon={statusInfo.icon}
+              style={[styles.statusChip, { backgroundColor: statusInfo.color + '20' }]}
+              textStyle={{ color: statusInfo.color, fontSize: 12, marginVertical: 0, paddingVertical: 0 }}
+              compact
             >
-              <MaterialCommunityIcons
-                name="pencil"
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+              {statusInfo.label}
+            </Chip>
             <TouchableOpacity
-              onPress={() => handleDelete(item.id, visitDate)}
+              onPress={() => handleDelete(item.id, item.name)}
               style={styles.deleteButton}
             >
               <MaterialCommunityIcons
@@ -131,43 +153,25 @@ const HealthHistoryScreen = () => {
           </View>
         </View>
 
-        <View style={styles.cardBody}>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Motivo:</Text>
-            <Text style={styles.value}>{item.reason}</Text>
-          </View>
-
-          {item.diagnosis && (
+        {item.nextDoseDate && (
+          <View style={styles.cardBody}>
             <View style={styles.infoRow}>
-              <Text style={styles.label}>Diagnóstico:</Text>
-              <Text style={styles.value}>{item.diagnosis}</Text>
-            </View>
-          )}
-
-          {item.vetName && (
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Veterinario:</Text>
-              <Text style={styles.value}>{item.vetName}</Text>
-            </View>
-          )}
-
-          {item.attachmentUrl && (
-            <TouchableOpacity
-              style={styles.attachmentButton}
-              onPress={() => {
-                // TODO: Abrir imagen en modal o navegador
-                Alert.alert('Receta', 'Ver imagen (próximamente)');
-              }}
-            >
               <MaterialCommunityIcons
-                name="paperclip"
+                name="calendar-clock"
                 size={16}
-                color={colors.primary}
+                color={colors.textSecondary}
               />
-              <Text style={styles.attachmentText}>Ver receta adjunta</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              <Text style={styles.label}>Próxima dosis:</Text>
+              <Text style={[styles.value, { color: statusInfo.color }]}>
+                {item.nextDoseDate.toDate().toLocaleDateString('es-ES', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </Text>
+            </View>
+          </View>
+        )}
       </Card>
     );
   };
@@ -175,14 +179,14 @@ const HealthHistoryScreen = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <MaterialCommunityIcons
-        name="stethoscope"
+        name="needle"
         size={80}
         color={colors.textSecondary}
         style={styles.emptyIcon}
       />
-      <Text style={styles.emptyTitle}>Sin historial médico</Text>
+      <Text style={styles.emptyTitle}>Sin vacunas registradas</Text>
       <Text style={styles.emptySubtitle}>
-        Pulsa el botón + para añadir la primera visita veterinaria
+        Pulsa el botón + para añadir la primera vacuna
       </Text>
     </View>
   );
@@ -194,8 +198,8 @@ const HealthHistoryScreen = () => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={visits}
-        renderItem={renderVisitCard}
+        data={vaccines}
+        renderItem={renderVaccineCard}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
@@ -206,9 +210,9 @@ const HealthHistoryScreen = () => {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => navigation.navigate('AddVisit', { petId })}
+        onPress={() => navigation.navigate('AddVaccine', { petId })}
         color={colors.surface}
-        label="Nueva Visita"
+        label="Nueva Vacuna"
       />
     </View>
   );
@@ -223,14 +227,14 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 100,
   },
-  visitCard: {
+  vaccineCard: {
     marginBottom: spacing.md,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -241,55 +245,41 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     flex: 1,
   },
-  visitDate: {
+  vaccineName: {
     ...typography.h3,
     color: colors.textPrimary,
     fontSize: 16,
   },
-  clinicName: {
+  vaccineDate: {
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
   },
-  headerActions: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  editButton: {
-    padding: spacing.xs,
+  statusChip: {
   },
   deleteButton: {
     padding: spacing.xs,
   },
   cardBody: {
-    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   infoRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   label: {
-    ...typography.button,
+    ...typography.caption,
     color: colors.textSecondary,
-    width: 100,
   },
   value: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  attachmentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: colors.primary + '15',
-    borderRadius: 8,
-  },
-  attachmentText: {
     ...typography.button,
-    color: colors.primary,
-    marginLeft: spacing.xs,
+    fontSize: 13,
   },
   emptyState: {
     alignItems: 'center',
@@ -319,4 +309,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HealthHistoryScreen;
+export default VaccinesScreen;

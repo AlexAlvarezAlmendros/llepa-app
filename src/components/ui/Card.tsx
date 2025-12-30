@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card as PaperCard } from 'react-native-paper';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { spacing, borderRadius } from '../../constants/theme';
 
 interface CardProps {
@@ -34,10 +34,16 @@ const styles = StyleSheet.create({
   },
   elevated: {
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Web usa boxShadow, Native usa shadowColor
+    ...(Platform.OS === 'web' 
+      ? { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' }
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }
+    ),
   },
 });
 

@@ -102,5 +102,7 @@ export type PetsStackParamList = {
   AddPet: undefined;
   EditPet: { petId: string };
   HealthHistory: { petId: string };
-  AddVisit: { petId: string };
+  AddVisit: { petId: string; visitId?: string };
+  Vaccines: { petId: string };
+  AddVaccine: { petId: string };
 };

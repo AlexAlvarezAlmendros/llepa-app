@@ -1,3 +1,5 @@
+import '@azure/core-asynciterator-polyfill';
+import 'expo-crypto';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
