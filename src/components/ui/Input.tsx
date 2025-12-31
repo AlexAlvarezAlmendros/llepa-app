@@ -6,13 +6,14 @@ import { spacing } from '../../constants/theme';
 interface InputProps {
   label: string;
   value: string;
-  onChangeText: (text: string) => void;
+  onChangeText?: (text: string) => void;
   placeholder?: string;
   secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'decimal-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   error?: string;
   disabled?: boolean;
+  editable?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
   left?: React.ReactNode;
@@ -29,6 +30,7 @@ const Input: React.FC<InputProps> = ({
   autoCapitalize = 'sentences',
   error,
   disabled = false,
+  editable = true,
   multiline = false,
   numberOfLines = 1,
   left,
@@ -46,6 +48,7 @@ const Input: React.FC<InputProps> = ({
         autoCapitalize={autoCapitalize}
         error={!!error}
         disabled={disabled}
+        editable={editable}
         multiline={multiline}
         numberOfLines={numberOfLines}
         mode="outlined"

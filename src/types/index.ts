@@ -63,7 +63,7 @@ export interface Vaccine {
 }
 
 // Recordatorio
-export type ReminderType = 'MEDICATION' | 'HYGIENE' | 'FOOD';
+export type ReminderType = 'MEDICATION' | 'HYGIENE' | 'FOOD' | 'OTHER';
 
 export interface Reminder {
   id: string;

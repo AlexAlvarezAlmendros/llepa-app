@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// @ts-ignore - Path interno de Firebase para React Native
 import { getReactNativePersistence } from '@firebase/auth/dist/rn';
 
 // Configuración de Firebase
@@ -30,7 +31,7 @@ const app = initializeApp(firebaseConfig);
 
 // Inicializar Auth con persistencia de AsyncStorage
 // Para React Native necesitamos importar desde el path específico
-let auth;
+let auth: Auth;
 try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),

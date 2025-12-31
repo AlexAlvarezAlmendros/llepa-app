@@ -35,7 +35,7 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
     }
 
     if (finalStatus !== 'granted') {
-      console.warn('No se obtuvieron permisos de notificaciones');
+
       return false;
     }
 
@@ -51,7 +51,7 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Error al solicitar permisos de notificaciones:', error);
+
     return false;
   }
 };
@@ -81,7 +81,7 @@ export const scheduleNotification = async (
 
     return notificationId;
   } catch (error: any) {
-    console.error('Error al programar notificación:', error);
+
     throw new Error(`Error al programar notificación: ${error.message}`);
   }
 };
@@ -143,7 +143,7 @@ export const scheduleRecurringNotification = async (
 
     return notificationId;
   } catch (error: any) {
-    console.error('Error al programar notificación recurrente:', error);
+
     throw new Error(`Error al programar notificación recurrente: ${error.message}`);
   }
 };
@@ -155,7 +155,7 @@ export const cancelNotification = async (notificationId: string): Promise<void> 
   try {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
   } catch (error: any) {
-    console.error('Error al cancelar notificación:', error);
+
     throw new Error(`Error al cancelar notificación: ${error.message}`);
   }
 };
@@ -167,7 +167,7 @@ export const cancelAllNotifications = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (error: any) {
-    console.error('Error al cancelar todas las notificaciones:', error);
+
     throw new Error(`Error al cancelar todas las notificaciones: ${error.message}`);
   }
 };
@@ -179,7 +179,7 @@ export const getAllScheduledNotifications = async (): Promise<Notifications.Noti
   try {
     return await Notifications.getAllScheduledNotificationsAsync();
   } catch (error: any) {
-    console.error('Error al obtener notificaciones programadas:', error);
+
     return [];
   }
 };
@@ -205,7 +205,7 @@ export const sendImmediateNotification = async (
 
     return notificationId;
   } catch (error: any) {
-    console.error('Error al enviar notificación inmediata:', error);
+
     throw new Error(`Error al enviar notificación inmediata: ${error.message}`);
   }
 };

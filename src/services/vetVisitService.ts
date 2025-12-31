@@ -1,70 +1,73 @@
 import {
   collection,
-  doc,
   getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
   query,
   orderBy,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { VetVisit } from '../types';
+import {
+  getPetSubcollectionDocs,
+  createPetSubcollectionDoc,
+  updatePetSubcollectionDoc,
+  deletePetSubcollectionDoc,
+  validateUserId,
+  validateId,
+} from '../utils/firestoreHelpers';
+import { logger } from '../utils/logger';
 
-// Colección de visitas para una mascota
-const getVisitsCollection = (userId: string, petId: string) => {
-  return collection(db, 'users', userId, 'pets', petId, 'visits');
-};
+const COLLECTION_NAME = 'visits';
 
 // Obtener todas las visitas de una mascota
 export const getPetVisits = async (userId: string, petId: string): Promise<VetVisit[]> => {
-  console.log('📡 getPetVisits: Consultando visitas para petId:', petId);
-  const visitsCol = getVisitsCollection(userId, petId);
-  const q = query(visitsCol, orderBy('date', 'desc'));
-  
-  const startTime = Date.now();
-  const snapshot = await getDocs(q);
-  const endTime = Date.now();
-  
-  console.log(`📡 getPetVisits: Respondió en ${endTime - startTime}ms con ${snapshot.docs.length} visitas`);
-  
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as VetVisit[];
+  validateUserId(userId);
+  validateId(petId, 'Pet ID');
+
+  logger.info('🏥 Obteniendo visitas veterinarias', { userId, petId });
+
+  const visits = await getPetSubcollectionDocs<VetVisit>(
+    userId,
+    petId,
+    COLLECTION_NAME,
+    [orderBy('date', 'desc')]
+  );
+
+  logger.success('✅ Visitas obtenidas', { count: visits.length });
+  return visits;
 };
 
 // Obtener todas las visitas de todas las mascotas del usuario
 export const getUserVisits = async (userId: string): Promise<VetVisit[]> => {
+  validateUserId(userId);
+
+  logger.info('🏥 Obteniendo todas las visitas del usuario', { userId });
+
   try {
     // Obtener todas las mascotas del usuario
     const petsCol = collection(db, 'users', userId, 'pets');
     const petsSnapshot = await getDocs(petsCol);
-    
+
     const allVisits: VetVisit[] = [];
-    
+
     // Para cada mascota, obtener sus visitas
     for (const petDoc of petsSnapshot.docs) {
       const petId = petDoc.id;
-      const visitsCol = getVisitsCollection(userId, petId);
-      const visitsSnapshot = await getDocs(visitsCol);
-      
-      const petVisits = visitsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as VetVisit[];
-      
+      const petVisits = await getPetSubcollectionDocs<VetVisit>(
+        userId,
+        petId,
+        COLLECTION_NAME
+      );
       allVisits.push(...petVisits);
     }
-    
+
     // Ordenar por fecha descendente
     allVisits.sort((a, b) => b.date.toMillis() - a.date.toMillis());
-    
+
+    logger.success('✅ Todas las visitas obtenidas', { count: allVisits.length });
     return allVisits;
   } catch (error) {
-    console.error('Error al obtener visitas del usuario:', error);
+    logger.error('Error al obtener visitas del usuario', error);
     throw error;
   }
 };
@@ -75,15 +78,18 @@ export const getVisit = async (
   petId: string,
   visitId: string
 ): Promise<VetVisit | null> => {
-  const visitDoc = doc(db, 'users', userId, 'pets', petId, 'visits', visitId);
-  const snapshot = await getDoc(visitDoc);
-  
-  if (!snapshot.exists()) return null;
-  
-  return {
-    id: snapshot.id,
-    ...snapshot.data(),
-  } as VetVisit;
+  validateUserId(userId);
+  validateId(petId, 'Pet ID');
+  validateId(visitId, 'Visit ID');
+
+  const visits = await getPetSubcollectionDocs<VetVisit>(
+    userId,
+    petId,
+    COLLECTION_NAME
+  );
+
+  const visit = visits.find(v => v.id === visitId);
+  return visit || null;
 };
 
 // Crear una nueva visita
@@ -91,19 +97,28 @@ export const createVisit = async (
   userId: string,
   petId: string,
   visitData: Omit<VetVisit, 'id' | 'petId' | 'userId' | 'createdAt'>
-): Promise<string> => {
-  console.log('📝 createVisit: Creando visita para petId:', petId);
-  const visitsCol = getVisitsCollection(userId, petId);
-  
-  const docRef = await addDoc(visitsCol, {
+): Promise<VetVisit> => {
+  validateUserId(userId);
+  validateId(petId, 'Pet ID');
+
+  logger.info('➕ Creando visita veterinaria', { userId, petId, reason: visitData.reason });
+
+  const data = {
     ...visitData,
     petId,
     userId,
+  };
+
+  const visitId = await createPetSubcollectionDoc(userId, petId, COLLECTION_NAME, data);
+
+  logger.success('✅ Visita creada', { visitId });
+
+  return {
+    id: visitId,
+    ...data,
     createdAt: Timestamp.now(),
-  });
-  
-  console.log('✅ createVisit: Visita creada con ID:', docRef.id);
-  return docRef.id;
+    updatedAt: Timestamp.now(),
+  } as VetVisit;
 };
 
 // Actualizar una visita
@@ -113,9 +128,15 @@ export const updateVisit = async (
   visitId: string,
   updates: Partial<VetVisit>
 ): Promise<void> => {
-  const visitDoc = doc(db, 'users', userId, 'pets', petId, 'visits', visitId);
-  await updateDoc(visitDoc, updates);
-  console.log('✅ updateVisit: Visita actualizada');
+  validateUserId(userId);
+  validateId(petId, 'Pet ID');
+  validateId(visitId, 'Visit ID');
+
+  logger.info('✏️ Actualizando visita', { visitId });
+
+  await updatePetSubcollectionDoc(userId, petId, COLLECTION_NAME, visitId, updates);
+
+  logger.success('✅ Visita actualizada', { visitId });
 };
 
 // Eliminar una visita
@@ -124,7 +145,13 @@ export const deleteVisit = async (
   petId: string,
   visitId: string
 ): Promise<void> => {
-  const visitDoc = doc(db, 'users', userId, 'pets', petId, 'visits', visitId);
-  await deleteDoc(visitDoc);
-  console.log('✅ deleteVisit: Visita eliminada');
+  validateUserId(userId);
+  validateId(petId, 'Pet ID');
+  validateId(visitId, 'Visit ID');
+
+  logger.info('🗑️ Eliminando visita', { visitId });
+
+  await deletePetSubcollectionDoc(userId, petId, COLLECTION_NAME, visitId);
+
+  logger.success('✅ Visita eliminada', { visitId });
 };

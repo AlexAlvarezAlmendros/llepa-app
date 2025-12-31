@@ -50,6 +50,7 @@ const REMINDER_TYPES: { value: ReminderType; label: string; icon: string }[] = [
   { value: 'MEDICATION', label: 'Medicación', icon: 'pill' },
   { value: 'HYGIENE', label: 'Higiene', icon: 'shower' },
   { value: 'FOOD', label: 'Alimentación', icon: 'food-drumstick' },
+  { value: 'OTHER', label: 'Otros', icon: 'dots-horizontal' },
 ];
 
 const FREQUENCIES = [

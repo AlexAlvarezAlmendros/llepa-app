@@ -21,15 +21,9 @@ const getPetsCollection = (userId: string) => {
 
 // Obtener todas las mascotas de un usuario
 export const getUserPets = async (userId: string): Promise<Pet[]> => {
-  console.log('📡 getUserPets: Consultando Firestore para userId:', userId);
   const petsCol = getPetsCollection(userId);
   const q = query(petsCol, orderBy('createdAt', 'desc'));
-  
-  const startTime = Date.now();
   const snapshot = await getDocs(q);
-  const endTime = Date.now();
-  
-  console.log(`📡 getUserPets: Firestore respondió en ${endTime - startTime}ms con ${snapshot.docs.length} documentos`);
   
   return snapshot.docs.map((doc) => ({
     id: doc.id,

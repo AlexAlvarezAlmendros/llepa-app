@@ -43,7 +43,7 @@ export const createReminder = async (
     const docRef = await addDoc(userRemindersRef, newReminder);
     return docRef.id;
   } catch (error: any) {
-    console.error('Error al crear recordatorio:', error);
+
     throw new Error(`Error al crear recordatorio: ${error.message}`);
   }
 };
@@ -66,7 +66,7 @@ export const getUserReminders = async (userId: string): Promise<Reminder[]> => {
       ...doc.data(),
     })) as Reminder[];
   } catch (error: any) {
-    console.error('Error al obtener recordatorios:', error);
+
     throw new Error(`Error al obtener recordatorios: ${error.message}`);
   }
 };
@@ -90,7 +90,7 @@ export const getPendingReminders = async (userId: string): Promise<Reminder[]> =
       ...doc.data(),
     })) as Reminder[];
   } catch (error: any) {
-    console.error('Error al obtener recordatorios pendientes:', error);
+
     throw new Error(`Error al obtener recordatorios pendientes: ${error.message}`);
   }
 };
@@ -119,7 +119,7 @@ export const getTodayReminders = async (userId: string): Promise<Reminder[]> => 
       ...doc.data(),
     })) as Reminder[];
   } catch (error: any) {
-    console.error('Error al obtener recordatorios de hoy:', error);
+
     throw new Error(`Error al obtener recordatorios de hoy: ${error.message}`);
   }
 };
@@ -146,7 +146,7 @@ export const getPetReminders = async (
       ...doc.data(),
     })) as Reminder[];
   } catch (error: any) {
-    console.error('Error al obtener recordatorios de mascota:', error);
+
     throw new Error(`Error al obtener recordatorios de mascota: ${error.message}`);
   }
 };
@@ -171,7 +171,7 @@ export const getReminder = async (
     
     return null;
   } catch (error: any) {
-    console.error('Error al obtener recordatorio:', error);
+
     throw new Error(`Error al obtener recordatorio: ${error.message}`);
   }
 };
@@ -188,7 +188,7 @@ export const updateReminder = async (
     const reminderRef = doc(db, 'users', userId, COLLECTION_NAME, reminderId);
     await updateDoc(reminderRef, updates);
   } catch (error: any) {
-    console.error('Error al actualizar recordatorio:', error);
+
     throw new Error(`Error al actualizar recordatorio: ${error.message}`);
   }
 };
@@ -206,7 +206,7 @@ export const completeReminder = async (
       completed: true,
     });
   } catch (error: any) {
-    console.error('Error al completar recordatorio:', error);
+
     throw new Error(`Error al completar recordatorio: ${error.message}`);
   }
 };
@@ -222,7 +222,7 @@ export const deleteReminder = async (
     const reminderRef = doc(db, 'users', userId, COLLECTION_NAME, reminderId);
     await deleteDoc(reminderRef);
   } catch (error: any) {
-    console.error('Error al eliminar recordatorio:', error);
+
     throw new Error(`Error al eliminar recordatorio: ${error.message}`);
   }
 };

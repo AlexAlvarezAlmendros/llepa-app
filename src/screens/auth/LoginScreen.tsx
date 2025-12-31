@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Button, Input, Loading } from '../../components/ui';
 import { colors, typography, spacing } from '../../constants/theme';
 import { loginSchema } from '../../utils/validation';
+import { getErrorMessage } from '../../utils/firebaseErrors';
 import { useAuth } from '../../hooks/useAuth';
 import { AuthStackParamList } from '../../types';
 
@@ -49,18 +50,7 @@ const LoginScreen = () => {
       setErrorMessage(null);
       await login(data.email, data.password);
     } catch (error: any) {
-      // Mensajes de error más amigables
-      if (error.code === 'auth/invalid-credential') {
-        setErrorMessage('Email o contraseña incorrectos');
-      } else if (error.code === 'auth/user-not-found') {
-        setErrorMessage('No existe una cuenta con este email');
-      } else if (error.code === 'auth/wrong-password') {
-        setErrorMessage('Contraseña incorrecta');
-      } else if (error.code === 'auth/too-many-requests') {
-        setErrorMessage('Demasiados intentos fallidos. Intenta más tarde');
-      } else {
-        setErrorMessage('Error al iniciar sesión. Intenta de nuevo');
-      }
+      setErrorMessage(getErrorMessage(error));
     }
   };
 

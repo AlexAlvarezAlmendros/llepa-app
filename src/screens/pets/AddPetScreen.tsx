@@ -16,7 +16,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Timestamp } from 'firebase/firestore';
 import { colors, typography, spacing } from '../../constants/theme';
@@ -24,6 +23,7 @@ import { Button, Input } from '../../components/ui';
 import { petSchema } from '../../utils/validation';
 import { useAuthStore } from '../../store/authStore';
 import { usePetStore } from '../../store/petStore';
+import { useImagePicker } from '../../hooks';
 import { PetsStackParamList } from '../../types';
 import { z } from 'zod';
 
@@ -38,7 +38,7 @@ const AddPetScreen = () => {
   
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const { imageUri: photoUri, pickImage, takePhoto } = useImagePicker();
 
   const {
     control,
@@ -60,51 +60,6 @@ const AddPetScreen = () => {
 
   const birthDate = watch('birthDate');
   const species = watch('species');
-
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permisos necesarios',
-        'Necesitamos acceso a tu galería para seleccionar una foto'
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
-
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permisos necesarios',
-        'Necesitamos acceso a tu cámara para tomar una foto'
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
 
   const showImageOptions = () => {
     Alert.alert(

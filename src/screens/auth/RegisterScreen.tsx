@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Button, Input } from '../../components/ui';
 import { colors, typography, spacing } from '../../constants/theme';
 import { registerSchema } from '../../utils/validation';
+import { getErrorMessage } from '../../utils/firebaseErrors';
 import { useAuth } from '../../hooks/useAuth';
 import { AuthStackParamList } from '../../types';
 
@@ -55,16 +56,7 @@ const RegisterScreen = () => {
       setErrorMessage(null);
       await register(data.email, data.password);
     } catch (error: any) {
-      // Mensajes de error más amigables
-      if (error.code === 'auth/email-already-in-use') {
-        setErrorMessage('Este email ya está registrado');
-      } else if (error.code === 'auth/invalid-email') {
-        setErrorMessage('Email inválido');
-      } else if (error.code === 'auth/weak-password') {
-        setErrorMessage('La contraseña es muy débil');
-      } else {
-        setErrorMessage('Error al crear la cuenta. Intenta de nuevo');
-      }
+      setErrorMessage(getErrorMessage(error));
     }
   };
 

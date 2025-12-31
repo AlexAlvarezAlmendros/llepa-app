@@ -10,12 +10,12 @@ import { auth, db } from '../config/firebase';
 
 // Registrar nuevo usuario
 export const registerUser = async (email: string, password: string, displayName?: string): Promise<FirebaseUser> => {
-  console.log('📝 Intentando registrar usuario:', email);
+
   
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
   
-  console.log('✅ Usuario creado en Firebase Auth:', user.uid);
+
   
   // Actualizar perfil con nombre
   if (displayName) {
@@ -30,7 +30,7 @@ export const registerUser = async (email: string, password: string, displayName?
     createdAt: Timestamp.now(),
   });
   
-  console.log('✅ Documento de usuario creado en Firestore');
+
   
   return user;
 };

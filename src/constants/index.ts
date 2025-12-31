@@ -6,6 +6,7 @@ export const REMINDER_TYPES = {
   MEDICATION: 'Medicación',
   VET_APPOINTMENT: 'Cita Veterinaria',
   HYGIENE: 'Higiene/Cuidados',
+  OTHER: 'Otros',
 } as const;
 
 // Frecuencias de recordatorios

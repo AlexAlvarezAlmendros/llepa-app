@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, type Auth } from 'firebase/auth';
 import { auth } from './src/config/firebase';
 import { useAuthStore } from './src/store/authStore';
 import { paperTheme } from './src/config/paperTheme';
@@ -15,7 +15,7 @@ export default function App() {
 
   useEffect(() => {
     // Listener de autenticación de Firebase
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth as Auth, (user) => {
       if (user) {
         setUser({
           uid: user.uid,
