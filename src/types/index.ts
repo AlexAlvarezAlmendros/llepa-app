@@ -30,6 +30,7 @@ export interface Pet {
     purchaseAmount: number; // cantidad que se compra en gramos (ej: 2000g = 2kg)
     dailyAmount: number; // cantidad diaria en gramos
     lastPurchaseDate?: Timestamp; // fecha de la última compra
+    alertDays?: number; // días restantes para activar alerta de compra (ej: 5 = avisar cuando queden 5 días)
   };
   insurance?: {
     policyNumber: string;

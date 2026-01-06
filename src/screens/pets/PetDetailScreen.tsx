@@ -19,6 +19,7 @@ import { usePetStore } from '../../store/petStore';
 import { PetsStackParamList } from '../../types';
 import { calculateAge } from '../../utils/dateUtils';
 import { useDialog } from '../../contexts/DialogContext';
+import { createReminder, getUserReminders, deleteReminder, updateReminder } from '../../services/reminderService';
 
 type PetDetailRouteProp = RouteProp<PetsStackParamList, 'PetDetail'>;
 type PetDetailNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'PetDetail'>;
@@ -48,6 +49,49 @@ const PetDetailScreen = () => {
 
   const age = pet.birthDate ? calculateAge(pet.birthDate.toDate()) : null;
 
+  /**
+   * Actualiza el recordatorio de comida cuando se registra una nueva compra
+   */
+  const updateFoodReminder = async (newPurchaseDate: Timestamp) => {
+    if (!user || !pet.food?.alertDays || !pet.food?.purchaseAmount || !pet.food?.dailyAmount) return;
+
+    try {
+      // Buscar recordatorio existente
+      const existingReminders = await getUserReminders(user.uid);
+      const existingFoodReminder = existingReminders.find(
+        r => r.petId === pet.id && r.type === 'FOOD' && r.title.includes('Comprar comida')
+      );
+
+      // Calcular nueva fecha de alerta
+      const totalDays = Math.floor(pet.food.purchaseAmount / pet.food.dailyAmount);
+      const alertDate = new Date(newPurchaseDate.toDate());
+      alertDate.setDate(alertDate.getDate() + totalDays - pet.food.alertDays);
+      alertDate.setHours(10, 0, 0, 0);
+
+      const reminderData = {
+        petId: pet.id,
+        title: `🛒 Comprar comida para ${pet.name}`,
+        type: 'FOOD' as const,
+        scheduledAt: Timestamp.fromDate(alertDate),
+        completed: false,
+        frequency: 'ONCE' as const,
+        notes: `Quedan aproximadamente ${pet.food.alertDays} días de comida. Marca: ${pet.food.brand || 'No especificada'}`,
+      };
+
+      if (existingFoodReminder) {
+        await updateReminder(user.uid, existingFoodReminder.id, {
+          scheduledAt: reminderData.scheduledAt,
+          notes: reminderData.notes,
+          completed: false,
+        });
+      } else {
+        await createReminder(user.uid, reminderData);
+      }
+    } catch (error) {
+      console.error('Error actualizando recordatorio de comida:', error);
+    }
+  };
+
   const handleResetPurchase = () => {
     showConfirm(
       'Nueva compra',
@@ -56,13 +100,18 @@ const PetDetailScreen = () => {
         if (!user || !pet.food) return;
         try {
           setLoading(true);
+          const newPurchaseDate = Timestamp.now();
           await updateExistingPet(user.uid, pet.id, {
             food: {
               ...pet.food,
-              lastPurchaseDate: Timestamp.now(),
+              lastPurchaseDate: newPurchaseDate,
             },
           });
-          showSuccess('¡Listo!', 'Se ha registrado la nueva compra');
+          
+          // Actualizar el recordatorio de comida con la nueva fecha
+          await updateFoodReminder(newPurchaseDate);
+          
+          showSuccess('¡Listo!', 'Se ha registrado la nueva compra y actualizado el recordatorio');
         } catch (error) {
           console.error('Error al reiniciar compra:', error);
           showError('Error', 'No se pudo registrar la compra');

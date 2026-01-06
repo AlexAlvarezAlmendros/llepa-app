@@ -27,6 +27,7 @@ import { PetsStackParamList } from '../../types';
 import { z } from 'zod';
 import { StackActions } from '@react-navigation/native';
 import { useDialog } from '../../contexts/DialogContext';
+import { createReminder, getUserReminders, deleteReminder, updateReminder } from '../../services/reminderService';
 
 type EditPetRouteProp = RouteProp<PetsStackParamList, 'EditPet'>;
 type EditPetNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'EditPet'>;
@@ -68,6 +69,7 @@ const EditPetScreen = () => {
       foodType: pet?.food?.type || undefined,
       foodPurchaseAmount: pet?.food?.purchaseAmount || undefined,
       foodDailyAmount: pet?.food?.dailyAmount || undefined,
+      foodAlertDays: pet?.food?.alertDays || undefined,
     },
   });
 
@@ -147,6 +149,105 @@ const EditPetScreen = () => {
     });
   };
 
+  /**
+   * Calcula la fecha en la que se debe crear el recordatorio de compra de comida
+   * basándose en la fecha de última compra, cantidad del paquete, ración diaria y días de alerta
+   * Si no hay fecha de última compra, usa la fecha actual como referencia
+   */
+  const calculateFoodAlertDate = (
+    lastPurchaseDate: Timestamp | undefined,
+    purchaseAmount: number,
+    dailyAmount: number,
+    alertDays: number
+  ): Date | null => {
+    if (dailyAmount <= 0 || purchaseAmount <= 0) return null;
+    
+    const totalDays = Math.floor(purchaseAmount / dailyAmount);
+    // Si no hay fecha de compra, usar la fecha actual como referencia
+    const purchaseDate = lastPurchaseDate ? lastPurchaseDate.toDate() : new Date();
+    const alertDate = new Date(purchaseDate);
+    alertDate.setDate(alertDate.getDate() + totalDays - alertDays);
+    
+    // Si la fecha de alerta ya pasó, programar para mañana
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (alertDate < today) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0); // A las 10:00
+      return tomorrow;
+    }
+    
+    alertDate.setHours(10, 0, 0, 0); // Notificar a las 10:00
+    return alertDate;
+  };
+
+  /**
+   * Gestiona el recordatorio de comida: crea, actualiza o elimina según configuración
+   */
+  const manageFoodReminder = async (
+    userId: string,
+    petId: string,
+    petName: string,
+    food: typeof updates.food
+  ) => {
+    try {
+      // Buscar si ya existe un recordatorio de comida para esta mascota
+      const existingReminders = await getUserReminders(userId);
+      const existingFoodReminder = existingReminders.find(
+        r => r.petId === petId && r.type === 'FOOD' && r.title.includes('Comprar comida')
+      );
+
+      // Si no hay alertDays configurado o no hay datos de comida, eliminar recordatorio existente
+      if (!food?.alertDays || !food?.purchaseAmount || !food?.dailyAmount) {
+        if (existingFoodReminder) {
+          await deleteReminder(userId, existingFoodReminder.id);
+        }
+        return;
+      }
+
+      const alertDate = calculateFoodAlertDate(
+        food.lastPurchaseDate || pet.food?.lastPurchaseDate,
+        food.purchaseAmount,
+        food.dailyAmount,
+        food.alertDays
+      );
+
+      if (!alertDate) {
+        // No se pudo calcular la fecha (cantidad/ración inválida)
+        if (existingFoodReminder) {
+          await deleteReminder(userId, existingFoodReminder.id);
+        }
+        return;
+      }
+
+      const reminderData = {
+        petId,
+        title: `🛒 Comprar comida para ${petName}`,
+        type: 'FOOD' as const,
+        scheduledAt: Timestamp.fromDate(alertDate),
+        completed: false,
+        frequency: 'ONCE' as const,
+        notes: `Quedan aproximadamente ${food.alertDays} días de comida. Marca: ${food.brand || 'No especificada'}`,
+      };
+
+      if (existingFoodReminder) {
+        // Actualizar recordatorio existente
+        await updateReminder(userId, existingFoodReminder.id, {
+          scheduledAt: reminderData.scheduledAt,
+          notes: reminderData.notes,
+          completed: false, // Resetear si estaba completado
+        });
+      } else {
+        // Crear nuevo recordatorio
+        await createReminder(userId, reminderData);
+      }
+    } catch (error) {
+      console.error('Error gestionando recordatorio de comida:', error);
+      // No lanzamos el error para no bloquear la actualización de la mascota
+    }
+  };
+
   const onSubmit = async (data: PetFormData) => {
     if (!user) return;
 
@@ -163,6 +264,8 @@ const EditPetScreen = () => {
             type: data.foodType,
             purchaseAmount: data.foodPurchaseAmount || 0,
             dailyAmount: data.foodDailyAmount || 0,
+            alertDays: data.foodAlertDays,
+            lastPurchaseDate: pet.food?.lastPurchaseDate, // Mantener la fecha de compra existente
           }
         : undefined;
 
@@ -179,6 +282,9 @@ const EditPetScreen = () => {
       };
 
       await updateExistingPet(user.uid, pet.id, updates);
+      
+      // Gestionar recordatorio de comida si está configurado
+      await manageFoodReminder(user.uid, pet.id, data.name, food);
 
       showSuccess('¡Éxito!', 'Mascota actualizada correctamente', () => navigation.goBack());
     } catch (error: any) {
@@ -461,6 +567,40 @@ const EditPetScreen = () => {
             )}
           />
 
+          {/* Alerta de comida */}
+          <View style={[styles.alertSection, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+            <View style={styles.alertHeader}>
+              <Icon source="bell-ring" size={20} color={theme.colors.primary} />
+              <Text style={[styles.alertTitle, { color: theme.colors.onSurface }]}>
+                Recordatorio de compra
+              </Text>
+            </View>
+            <Text style={[styles.alertDescription, { color: theme.colors.onSurfaceVariant }]}>
+              Configura cuántos días antes quieres recibir un aviso para comprar comida
+            </Text>
+            <Controller
+              control={control}
+              name="foodAlertDays"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Avisar cuando queden X días"
+                  value={value?.toString() || ''}
+                  onChangeText={(text) => {
+                    const num = parseInt(text, 10);
+                    onChange(isNaN(num) ? undefined : num);
+                  }}
+                  placeholder="Ej: 5 (avisar 5 días antes)"
+                  keyboardType="number-pad"
+                  error={errors.foodAlertDays?.message}
+                  left={<TextInput.Icon icon="calendar-alert" />}
+                />
+              )}
+            />
+            <Text style={[styles.alertHint, { color: theme.colors.onSurfaceVariant }]}>
+              💡 Se creará un recordatorio automático cuando el paquete llegue a ese límite
+            </Text>
+          </View>
+
           {/* Botones */}
           <View style={styles.buttonContainer}>
             <Button
@@ -559,6 +699,31 @@ const styles = StyleSheet.create({
   },
   segmentedButtons: {
     marginBottom: spacing.xs,
+  },
+  alertSection: {
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  alertTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  alertDescription: {
+    fontSize: 13,
+    marginBottom: spacing.md,
+  },
+  alertHint: {
+    fontSize: 12,
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
   },
   dateButton: {
     flexDirection: 'row',

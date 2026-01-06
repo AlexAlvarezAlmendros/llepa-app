@@ -29,6 +29,7 @@ export const petSchema = z.object({
   foodType: z.enum(['Pienso', 'Húmedo', 'Natural', 'Mixto']).optional(),
   foodPurchaseAmount: z.number().positive('La cantidad debe ser positiva').optional(),
   foodDailyAmount: z.number().positive('La cantidad debe ser positiva').optional(),
+  foodAlertDays: z.number().int().min(1, 'Mínimo 1 día').max(30, 'Máximo 30 días').optional(),
 });
 
 // Schema de validación para visita veterinaria

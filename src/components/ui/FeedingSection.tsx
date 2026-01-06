@@ -10,6 +10,7 @@ interface FeedingInfo {
   purchaseAmount: number; // en gramos
   dailyAmount: number; // en gramos
   lastPurchaseDate?: Timestamp; // fecha de última compra
+  alertDays?: number; // días restantes para activar alerta de compra
 }
 
 interface FeedingSectionProps {
@@ -220,6 +221,16 @@ const FeedingSection: React.FC<FeedingSectionProps> = ({ food, onResetPurchase }
             ? '📦 Planifica tu próxima compra'
             : '✅ Tienes comida suficiente'}
         </Text>
+
+        {/* Indicador de alerta configurada */}
+        {food.alertDays && (
+          <View style={[styles.alertConfigured, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Icon source="bell-ring" size={16} color={theme.colors.primary} />
+            <Text style={[styles.alertConfiguredText, { color: theme.colors.onPrimaryContainer }]}>
+              Recordatorio configurado: avisar cuando queden {food.alertDays} días
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -312,6 +323,18 @@ const styles = StyleSheet.create({
   nextPurchase: {
     fontSize: 13,
     textAlign: 'center',
+  },
+  alertConfigured: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: 8,
+  },
+  alertConfiguredText: {
+    fontSize: 12,
+    flex: 1,
   },
 });
 
