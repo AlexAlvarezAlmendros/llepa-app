@@ -17,6 +17,7 @@ import {
   orderBy,
   Timestamp,
   getDoc,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Reminder } from '../types';
@@ -190,6 +191,40 @@ export const updateReminder = async (
   } catch (error: any) {
 
     throw new Error(`Error al actualizar recordatorio: ${error.message}`);
+  }
+};
+
+/**
+ * Actualizar un recordatorio de medicación (con soporte para eliminar endDate)
+ */
+export const updateMedicationReminder = async (
+  userId: string,
+  reminderId: string,
+  updates: {
+    title?: string;
+    scheduledAt?: Timestamp;
+    frequency?: Reminder['frequency'];
+    endDate?: Timestamp; // undefined = eliminar el campo
+    notes?: string;
+    completed?: boolean;
+    completedDates?: string[];
+  }
+): Promise<void> => {
+  try {
+    const reminderRef = doc(db, 'users', userId, COLLECTION_NAME, reminderId);
+    
+    // Construir el objeto de actualización
+    const updateData: any = { ...updates };
+    
+    // Si endDate es undefined, usar deleteField() para eliminarlo
+    if (updates.endDate === undefined) {
+      updateData.endDate = deleteField();
+    }
+    
+    await updateDoc(reminderRef, updateData);
+  } catch (error: any) {
+
+    throw new Error(`Error al actualizar recordatorio de medicación: ${error.message}`);
   }
 };
 

@@ -92,12 +92,12 @@ export const scheduleNotification = async (
 
 /**
  * Programar notificación recurrente
- * Para frecuencias no soportadas nativamente (cada 2/3 días), programamos solo la próxima notificación
+ * Para frecuencias no soportadas nativamente (cada 2/3 días, cada 8/12h), programamos solo la próxima notificación
  */
 export const scheduleRecurringNotification = async (
   title: string,
   body: string,
-  frequency: 'DAILY' | 'EVERY_TWO_DAYS' | 'EVERY_THREE_DAYS' | 'WEEKLY' | 'MONTHLY',
+  frequency: 'EVERY_8_HOURS' | 'EVERY_12_HOURS' | 'DAILY' | 'EVERY_TWO_DAYS' | 'EVERY_THREE_DAYS' | 'WEEKLY' | 'MONTHLY',
   hour: number,
   minute: number,
   data?: any
@@ -106,6 +106,34 @@ export const scheduleRecurringNotification = async (
     let trigger: any;
 
     switch (frequency) {
+      case 'EVERY_8_HOURS':
+      case 'EVERY_12_HOURS':
+        // Para frecuencias sub-diarias, programamos la próxima notificación
+        const intervalHours = frequency === 'EVERY_8_HOURS' ? 8 : 12;
+        const nowSubDaily = new Date();
+        const scheduledSubDaily = new Date(nowSubDaily);
+        scheduledSubDaily.setHours(hour, minute, 0, 0);
+        
+        // Si la hora ya pasó, programar para la próxima ocurrencia
+        if (scheduledSubDaily <= nowSubDaily) {
+          scheduledSubDaily.setTime(scheduledSubDaily.getTime() + intervalHours * 60 * 60 * 1000);
+        }
+        
+        const subDailyNotificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            data: { ...data, frequency, intervalHours },
+            sound: true,
+          },
+          trigger: {
+            channelId: 'default',
+            date: scheduledSubDaily,
+          },
+        });
+        
+        return subDailyNotificationId;
+        
       case 'DAILY':
         trigger = {
           channelId: 'default',
@@ -246,31 +274,24 @@ export const sendImmediateNotification = async (
 };
 
 /**
- * Reprogramar la próxima notificación para frecuencias cada 2/3 días
+ * Reprogramar la próxima notificación para frecuencias personalizadas
+ * (cada 8h, 12h, 2 días, 3 días)
  * Esta función se llama automáticamente cuando se recibe una notificación
  */
 const rescheduleIntervalNotification = async (notification: Notifications.Notification) => {
   try {
     const data = notification.request.content.data;
     
-    // Verificar si es una notificación con frecuencia cada 2 o 3 días
-    if (!data?.frequency || !data?.intervalDays) return;
+    // Verificar si es una notificación con frecuencia personalizada
+    if (!data?.frequency) return;
     
     const frequency = data.frequency as string;
-    if (frequency !== 'EVERY_TWO_DAYS' && frequency !== 'EVERY_THREE_DAYS') return;
-    
-    const intervalDays = data.intervalDays as number;
     const title = notification.request.content.title || 'Recordatorio';
     const body = notification.request.content.body || '';
     
-    // Calcular la próxima fecha
-    const now = new Date();
-    const nextDate = new Date(now);
-    nextDate.setDate(nextDate.getDate() + intervalDays);
-    
-    // Mantener la misma hora que la notificación original
-    // Intentar obtener la hora del trigger original o usar la hora actual
+    // Obtener la hora original del trigger
     const originalTrigger = notification.request.trigger;
+    const now = new Date();
     let hour = now.getHours();
     let minute = now.getMinutes();
     
@@ -280,7 +301,22 @@ const rescheduleIntervalNotification = async (notification: Notifications.Notifi
       minute = triggerDate.getMinutes();
     }
     
-    nextDate.setHours(hour, minute, 0, 0);
+    let nextDate: Date | null = null;
+    
+    // Manejar frecuencias sub-diarias (cada 8h o 12h)
+    if (frequency === 'EVERY_8_HOURS' || frequency === 'EVERY_12_HOURS') {
+      const intervalHours = frequency === 'EVERY_8_HOURS' ? 8 : 12;
+      nextDate = new Date(now.getTime() + intervalHours * 60 * 60 * 1000);
+    }
+    // Manejar frecuencias de días (cada 2 o 3 días)
+    else if ((frequency === 'EVERY_TWO_DAYS' || frequency === 'EVERY_THREE_DAYS') && data?.intervalDays) {
+      const intervalDays = data.intervalDays as number;
+      nextDate = new Date(now);
+      nextDate.setDate(nextDate.getDate() + intervalDays);
+      nextDate.setHours(hour, minute, 0, 0);
+    }
+    
+    if (!nextDate) return;
     
     // Programar la próxima notificación
     await Notifications.scheduleNotificationAsync({

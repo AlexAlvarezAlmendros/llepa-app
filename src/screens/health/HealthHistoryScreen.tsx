@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { FAB, useTheme, Icon } from 'react-native-paper';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -14,7 +15,8 @@ import { spacing } from '../../constants/theme';
 import { Card, Loading } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
 import { getPetVisits, deleteVisit } from '../../services/vetVisitService';
-import { VetVisit, PetsStackParamList } from '../../types';
+import { getActiveMedications } from '../../services/medicationService';
+import { VetVisit, PetsStackParamList, Medication } from '../../types';
 
 type HealthHistoryRouteProp = RouteProp<PetsStackParamList, 'HealthHistory'>;
 type HealthHistoryNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'HealthHistory'>;
@@ -27,18 +29,23 @@ const HealthHistoryScreen = () => {
   const { petId } = route.params;
   
   const [visits, setVisits] = useState<VetVisit[]>([]);
+  const [activeMedications, setActiveMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadVisits = async () => {
+  const loadData = async () => {
     if (!user) return;
     
     try {
-      const visitsList = await getPetVisits(user.uid, petId);
+      const [visitsList, medicationsList] = await Promise.all([
+        getPetVisits(user.uid, petId),
+        getActiveMedications(user.uid, petId),
+      ]);
       setVisits(visitsList);
+      setActiveMedications(medicationsList);
     } catch (error) {
-      console.error('Error cargando visitas:', error);
-      Alert.alert('Error', 'No se pudieron cargar las visitas');
+      console.error('Error cargando datos:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -50,14 +57,14 @@ const HealthHistoryScreen = () => {
     useCallback(() => {
       if (user) {
         setLoading(true);
-        loadVisits();
+        loadData();
       }
     }, [user, petId])
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadVisits();
+    loadData();
   };
 
   const handleDelete = (visitId: string, visitDate: string) => {
@@ -190,6 +197,46 @@ const HealthHistoryScreen = () => {
     return <Loading fullScreen />;
   }
 
+  // Componente de accesos rápidos
+  const QuickAccessSection = () => (
+    <View style={styles.quickAccessContainer}>
+      <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Gestión de Salud</Text>
+      <View style={styles.quickAccessGrid}>
+        {/* Vacunas */}
+        <TouchableOpacity
+          style={[styles.quickAccessCard, { backgroundColor: theme.colors.secondaryContainer }]}
+          onPress={() => navigation.navigate('Vaccines', { petId })}
+        >
+          <Icon source="needle" size={32} color={theme.colors.onSecondaryContainer} />
+          <Text style={[styles.quickAccessLabel, { color: theme.colors.onSecondaryContainer }]}>Vacunas</Text>
+        </TouchableOpacity>
+
+        {/* Medicaciones */}
+        <TouchableOpacity
+          style={[styles.quickAccessCard, { backgroundColor: theme.colors.primaryContainer }]}
+          onPress={() => navigation.navigate('Medications', { petId })}
+        >
+          <View style={styles.quickAccessBadgeContainer}>
+            <Icon source="pill" size={32} color={theme.colors.onPrimaryContainer} />
+            {activeMedications.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
+                <Text style={[styles.badgeText, { color: theme.colors.onError }]}>
+                  {activeMedications.length}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.quickAccessLabel, { color: theme.colors.onPrimaryContainer }]}>Medicaciones</Text>
+          {activeMedications.length > 0 && (
+            <Text style={[styles.quickAccessSubLabel, { color: theme.colors.onPrimaryContainer }]}>
+              {activeMedications.length} activa{activeMedications.length > 1 ? 's' : ''}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
@@ -197,6 +244,7 @@ const HealthHistoryScreen = () => {
         renderItem={renderVisitCard}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={QuickAccessSection}
         ListEmptyComponent={renderEmptyState}
         refreshing={refreshing || false}
         onRefresh={handleRefresh}
@@ -220,6 +268,53 @@ const styles = StyleSheet.create({
   listContent: {
     padding: spacing.lg,
     paddingBottom: 100,
+  },
+  quickAccessContainer: {
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: spacing.md,
+  },
+  quickAccessGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  quickAccessCard: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 100,
+  },
+  quickAccessBadgeContainer: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  quickAccessLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: spacing.sm,
+  },
+  quickAccessSubLabel: {
+    fontSize: 11,
+    marginTop: 2,
+    opacity: 0.8,
   },
   visitCard: {
     marginBottom: spacing.md,

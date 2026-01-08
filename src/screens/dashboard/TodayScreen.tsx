@@ -47,17 +47,30 @@ const TodayScreen = () => {
   const getReminderColor = useCallback((type: string): string => {
     switch (type) {
       case 'MEDICATION':
-        return theme.colors.primary;
+        return '#4F46E5'; // indigo
+      case 'VET_APPOINTMENT':
+        return '#EF4444'; // red
+      case 'VACCINE':
+        return '#10B981'; // emerald
+      case 'ANTIPARASITIC':
+        return '#8B5CF6'; // violet
       case 'HYGIENE':
-        return theme.colors.secondary;
+        return '#06B6D4'; // cyan
+      case 'GROOMING':
+        return '#EC4899'; // pink
       case 'FOOD':
-        return '#F59E0B';
+        return '#F59E0B'; // amber
+      case 'WALK':
+        return '#22C55E'; // green
+      case 'TRAINING':
+        return '#F97316'; // orange
       case 'VISIT':
-        return theme.colors.error;
+        return '#EF4444'; // red
+      case 'OTHER':
       default:
-        return theme.colors.onSurfaceVariant;
+        return '#6B7280'; // gray
     }
-  }, [theme]);
+  }, []);
 
   // Memoizar fecha formateada
   const capitalizedDate = useMemo(() => {

@@ -43,12 +43,23 @@ const getReminderIcon = (type: string): string => {
   switch (type) {
     case 'MEDICATION':
       return 'pill';
+    case 'VET_APPOINTMENT':
+      return 'hospital-building';
+    case 'VACCINE':
+      return 'needle';
+    case 'ANTIPARASITIC':
+      return 'bug';
     case 'HYGIENE':
       return 'shower';
+    case 'GROOMING':
+      return 'content-cut';
     case 'FOOD':
       return 'food';
+    case 'WALK':
+      return 'walk';
+    case 'TRAINING':
+      return 'dog-side';
     case 'OTHER':
-      return 'bell';
     default:
       return 'bell';
   }
@@ -57,13 +68,26 @@ const getReminderIcon = (type: string): string => {
 const getReminderColor = (type: string): string => {
   switch (type) {
     case 'MEDICATION':
-      return '#4F46E5'; // primary
+      return '#4F46E5'; // primary/indigo
+    case 'VET_APPOINTMENT':
+      return '#EF4444'; // error/red
+    case 'VACCINE':
+      return '#10B981'; // emerald
+    case 'ANTIPARASITIC':
+      return '#8B5CF6'; // violet
     case 'HYGIENE':
-      return '#7C3AED'; // secondary
+      return '#06B6D4'; // cyan
+    case 'GROOMING':
+      return '#EC4899'; // pink
     case 'FOOD':
       return '#F59E0B'; // amber
+    case 'WALK':
+      return '#22C55E'; // green
+    case 'TRAINING':
+      return '#F97316'; // orange
     case 'VISIT':
       return '#EF4444'; // error/red
+    case 'OTHER':
     default:
       return '#6B7280'; // gray
   }
@@ -86,9 +110,19 @@ const generateRecurringDates = (
   const originalDateNormalized = new Date(originalDate);
   originalDateNormalized.setHours(0, 0, 0, 0);
   
+  // Si el recordatorio tiene fecha de fin, usarla como límite
+  let effectiveEndDate = endDate;
+  if (reminder.endDate) {
+    const reminderEndDate = reminder.endDate.toDate();
+    reminderEndDate.setHours(23, 59, 59, 999);
+    if (reminderEndDate < effectiveEndDate) {
+      effectiveEndDate = reminderEndDate;
+    }
+  }
+  
   // Si no tiene frecuencia o es única, solo devolver la fecha original
   if (!reminder.frequency || reminder.frequency === 'ONCE') {
-    if (originalDateNormalized >= startDate && originalDateNormalized <= endDate) {
+    if (originalDateNormalized >= startDate && originalDateNormalized <= effectiveEndDate) {
       dates.push(originalDateNormalized);
     }
     return dates;
@@ -97,8 +131,10 @@ const generateRecurringDates = (
   // Calcular el intervalo en días según la frecuencia
   let intervalDays = 1;
   switch (reminder.frequency) {
+    case 'EVERY_8_HOURS':
+    case 'EVERY_12_HOURS':
     case 'DAILY':
-      intervalDays = 1;
+      intervalDays = 1; // Frecuencias sub-diarias aparecen cada día
       break;
     case 'EVERY_TWO_DAYS':
       intervalDays = 2;
@@ -143,7 +179,7 @@ const generateRecurringDates = (
   }
 
   // Generar todas las ocurrencias dentro del rango
-  while (currentDate <= endDate) {
+  while (currentDate <= effectiveEndDate) {
     dates.push(new Date(currentDate));
     
     if (reminder.frequency === 'MONTHLY') {
@@ -162,46 +198,85 @@ const generateRecurringDates = (
 /**
  * Verifica si un recordatorio está completado para una fecha específica
  */
-const isCompletedForDate = (reminder: Reminder, dateKey: string): boolean => {
+const isCompletedForDate = (reminder: Reminder, dateKey: string, instanceKey: string = ''): boolean => {
   // Para recordatorios únicos (ONCE), usar el campo completed tradicional
   if (!reminder.frequency || reminder.frequency === 'ONCE') {
     return reminder.completed;
   }
   
   // Para recordatorios recurrentes, verificar si la fecha está en completedDates
-  return reminder.completedDates?.includes(dateKey) ?? false;
+  // El formato incluye la hora para frecuencias sub-diarias
+  const fullKey = dateKey + instanceKey;
+  return reminder.completedDates?.includes(fullKey) ?? false;
 };
 
 /**
- * Crea un TodayItem para una ocurrencia específica de un recordatorio
+ * Genera las instancias sub-diarias para un recordatorio en una fecha específica
  */
-const createReminderOccurrence = (
+const generateSubDailyInstances = (
+  reminder: Reminder,
+  occurrenceDate: Date
+): { time: Date; instanceKey: string }[] => {
+  const originalDate = reminder.scheduledAt.toDate();
+  const instances: { time: Date; instanceKey: string }[] = [];
+  
+  if (!reminder.frequency || (reminder.frequency !== 'EVERY_8_HOURS' && reminder.frequency !== 'EVERY_12_HOURS')) {
+    // Para recordatorios no sub-diarios, solo una instancia
+    const timeWithOriginalHour = new Date(occurrenceDate);
+    timeWithOriginalHour.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
+    return [{ time: timeWithOriginalHour, instanceKey: '' }];
+  }
+  
+  const intervalHours = reminder.frequency === 'EVERY_8_HOURS' ? 8 : 12;
+  const startHour = originalDate.getHours();
+  const startMinute = originalDate.getMinutes();
+  
+  // Generar las horas del día basándose en el intervalo
+  for (let i = 0; i < 24 / intervalHours; i++) {
+    const hour = (startHour + i * intervalHours) % 24;
+    const instanceTime = new Date(occurrenceDate);
+    instanceTime.setHours(hour, startMinute, 0, 0);
+    
+    instances.push({
+      time: instanceTime,
+      instanceKey: `-${hour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
+    });
+  }
+  
+  return instances.sort((a, b) => a.time.getTime() - b.time.getTime());
+};
+
+/**
+ * Crea TodayItems para una ocurrencia específica de un recordatorio
+ * Para frecuencias sub-diarias, genera múltiples items
+ */
+const createReminderOccurrences = (
   reminder: Reminder,
   occurrenceDate: Date,
   petName?: string
-): TodayItem => {
-  // Mantener la hora original pero con la nueva fecha
-  const originalDate = reminder.scheduledAt.toDate();
-  const occurrenceWithTime = new Date(occurrenceDate);
-  occurrenceWithTime.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
-
+): TodayItem[] => {
   const dateKey = formatDateKey(occurrenceDate);
-  const isCompleted = isCompletedForDate(reminder, dateKey);
-
-  return {
-    id: `${reminder.id}_${dateKey}`,
-    type: 'reminder' as const,
-    time: formatTime(occurrenceWithTime),
-    title: reminder.title,
-    subtitle: petName,
-    icon: getReminderIcon(reminder.type),
-    completed: isCompleted,
-    data: {
-      ...reminder,
-      // Crear un timestamp virtual para esta ocurrencia
-      _occurrenceDate: occurrenceDate,
-    } as Reminder & { _occurrenceDate?: Date },
-  };
+  const instances = generateSubDailyInstances(reminder, occurrenceDate);
+  
+  return instances.map(({ time, instanceKey }) => {
+    const isCompleted = isCompletedForDate(reminder, dateKey, instanceKey);
+    
+    return {
+      id: `${reminder.id}_${dateKey}${instanceKey}`,
+      type: 'reminder' as const,
+      time: formatTime(time),
+      title: reminder.title,
+      subtitle: petName,
+      icon: getReminderIcon(reminder.type),
+      completed: isCompleted,
+      data: {
+        ...reminder,
+        _occurrenceDate: occurrenceDate,
+        _instanceKey: instanceKey,
+        _instanceTime: time,
+      } as Reminder & { _occurrenceDate?: Date; _instanceKey?: string; _instanceTime?: Date },
+    };
+  });
 };
 
 export const useCalendarItems = (userId: string | undefined): UseCalendarItemsResult => {
@@ -248,7 +323,9 @@ export const useCalendarItems = (userId: string | undefined): UseCalendarItemsRe
         const recurringDates = generateRecurringDates(reminder, startDate, endDate);
         
         recurringDates.forEach((occurrenceDate) => {
-          reminderItems.push(createReminderOccurrence(reminder, occurrenceDate, pet?.name));
+          // createReminderOccurrences devuelve un array (múltiples instancias para sub-diarias)
+          const occurrenceItems = createReminderOccurrences(reminder, occurrenceDate, pet?.name);
+          reminderItems.push(...occurrenceItems);
         });
       });
 
@@ -268,8 +345,9 @@ export const useCalendarItems = (userId: string | undefined): UseCalendarItemsRe
       const allItems = [...reminderItems, ...visitItems].sort((a, b) => {
         const getItemTime = (item: TodayItem): Date => {
           if (item.type === 'reminder') {
-            const reminderData = item.data as Reminder & { _occurrenceDate?: Date };
-            return reminderData._occurrenceDate || reminderData.scheduledAt.toDate();
+            const reminderData = item.data as Reminder & { _occurrenceDate?: Date; _instanceTime?: Date };
+            // Usar _instanceTime si existe (para frecuencias sub-diarias), luego _occurrenceDate, luego scheduledAt
+            return reminderData._instanceTime || reminderData._occurrenceDate || reminderData.scheduledAt.toDate();
           }
           return (item.data as VetVisit).date.toDate();
         };
@@ -377,13 +455,14 @@ export const useCalendarItems = (userId: string | undefined): UseCalendarItemsRe
     const item = items.find(i => i.id === itemId);
     if (!item || item.type !== 'reminder') return;
 
-    const reminderData = item.data as Reminder & { _occurrenceDate?: Date };
+    const reminderData = item.data as Reminder & { _occurrenceDate?: Date; _instanceKey?: string };
     const actualReminderId = reminderData.id;
+    const instanceKey = reminderData._instanceKey || '';
     const isRecurring = reminderData.frequency && reminderData.frequency !== 'ONCE';
     
-    // Obtener la fecha de la ocurrencia
+    // Obtener la fecha de la ocurrencia con el instanceKey para frecuencias sub-diarias
     const occurrenceDate = reminderData._occurrenceDate || reminderData.scheduledAt.toDate();
-    const dateKey = formatDateKey(occurrenceDate);
+    const dateKey = formatDateKey(occurrenceDate) + instanceKey;
     
     const currentlyCompleted = item.completed ?? false;
     const newCompleted = !currentlyCompleted;

@@ -10,6 +10,16 @@ import HealthHistoryScreen from '../screens/health/HealthHistoryScreen';
 import AddVisitScreen from '../screens/health/AddVisitScreen';
 import VaccinesScreen from '../screens/health/VaccinesScreen';
 import AddVaccineScreen from '../screens/health/AddVaccineScreen';
+import MedicationsScreen from '../screens/health/MedicationsScreen';
+import AddMedicationScreen from '../screens/health/AddMedicationScreen';
+// Gamificación: Entrenamiento, Paseos e Incidentes
+import TrainingListScreen from '../screens/activity/TrainingListScreen';
+import AddTrainingScreen from '../screens/activity/AddTrainingScreen';
+import WalksListScreen from '../screens/activity/WalksListScreen';
+import ActiveWalkScreen from '../screens/activity/ActiveWalkScreen';
+import AddWalkScreen from '../screens/activity/AddWalkScreen';
+import IncidentsListScreen from '../screens/activity/IncidentsListScreen';
+import AddIncidentScreen from '../screens/activity/AddIncidentScreen';
 
 const Stack = createNativeStackNavigator<PetsStackParamList>();
 
@@ -68,6 +78,57 @@ const PetsNavigator = () => {
         name="AddVaccine"
         component={AddVaccineScreen}
         options={{ title: 'Nueva Vacuna' }}
+      />
+      <Stack.Screen
+        name="Medications"
+        component={MedicationsScreen}
+        options={{ title: 'Medicaciones' }}
+      />
+      <Stack.Screen
+        name="AddMedication"
+        component={AddMedicationScreen}
+        options={{ title: 'Nueva Medicación' }}
+      />
+      {/* Gamificación: Entrenamiento */}
+      <Stack.Screen
+        name="TrainingList"
+        component={TrainingListScreen}
+        options={{ title: 'Entrenamiento' }}
+      />
+      <Stack.Screen
+        name="AddTraining"
+        component={AddTrainingScreen}
+        options={{ title: 'Nuevo Truco' }}
+      />
+      {/* Gamificación: Paseos */}
+      <Stack.Screen
+        name="WalksList"
+        component={WalksListScreen}
+        options={{ title: 'Diario de Paseos' }}
+      />
+      <Stack.Screen
+        name="ActiveWalk"
+        component={ActiveWalkScreen}
+        options={{ 
+          title: 'Paseo en vivo',
+          headerShown: false, // Pantalla inmersiva sin header
+        }}
+      />
+      <Stack.Screen
+        name="AddWalk"
+        component={AddWalkScreen}
+        options={{ title: 'Registrar Paseo' }}
+      />
+      {/* Gamificación: Incidentes */}
+      <Stack.Screen
+        name="IncidentsList"
+        component={IncidentsListScreen}
+        options={{ title: 'Registro de Incidentes' }}
+      />
+      <Stack.Screen
+        name="AddIncident"
+        component={AddIncidentScreen}
+        options={{ title: 'Nuevo Incidente' }}
       />
     </Stack.Navigator>
   );

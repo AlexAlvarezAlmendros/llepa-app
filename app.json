@@ -14,7 +14,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alexalvarez.llepa"
+      "bundleIdentifier": "com.alexalvarez.llepa",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para rastrear tus paseos con tu mascota.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Necesitamos tu ubicación para rastrear tus paseos con tu mascota incluso en segundo plano.",
+        "NSMotionUsageDescription": "Necesitamos acceso a los sensores de movimiento para contar tus pasos durante los paseos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +31,11 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACTIVITY_RECOGNITION"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -46,6 +55,18 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#4F46E5"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Necesitamos tu ubicación para rastrear tus paseos con tu mascota."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Necesitamos acceso a los sensores de movimiento para contar tus pasos."
         }
       ]
     ]

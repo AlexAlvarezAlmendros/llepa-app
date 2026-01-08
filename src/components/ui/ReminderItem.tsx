@@ -141,6 +141,8 @@ const ReminderItemComponent: React.FC<ReminderItemProps> = ({
               textStyle={[styles.frequencyChipText, { color: theme.colors.onPrimaryContainer }]}
               compact
             >
+              {reminder.frequency === 'EVERY_8_HOURS' && 'Cada 8 horas'}
+              {reminder.frequency === 'EVERY_12_HOURS' && 'Cada 12 horas'}
               {reminder.frequency === 'DAILY' && 'Diaria'}
               {reminder.frequency === 'EVERY_TWO_DAYS' && 'Cada 2 días'}
               {reminder.frequency === 'EVERY_THREE_DAYS' && 'Cada 3 días'}

@@ -319,6 +319,100 @@ const PetDetailScreen = () => {
               />
             </View>
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => navigation.navigate('Medications', { petId: pet.id })}
+          >
+            <View style={styles.listItemContent}>
+              <Icon
+                source="pill"
+                size={24}
+                color={theme.colors.primary}
+              />
+              <View style={styles.listTextContainer}>
+                <Text style={[styles.listTitle, { color: theme.colors.onSurface }]}>Medicaciones</Text>
+                <Text style={[styles.listDescription, { color: theme.colors.onSurfaceVariant }]}>Gestionar tratamientos activos</Text>
+              </View>
+              <Icon
+                source="chevron-right"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
+        </Card>
+
+        {/* Sección Actividad - Gamificación */}
+        <Card style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Actividad Diaria</Text>
+          <Divider style={styles.divider} />
+          
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => navigation.navigate('TrainingList', { petId: pet.id })}
+          >
+            <View style={styles.listItemContent}>
+              <Icon
+                source="school"
+                size={24}
+                color="#8B5CF6"
+              />
+              <View style={styles.listTextContainer}>
+                <Text style={[styles.listTitle, { color: theme.colors.onSurface }]}>Entrenamiento</Text>
+                <Text style={[styles.listDescription, { color: theme.colors.onSurfaceVariant }]}>Trucos y comandos aprendidos</Text>
+              </View>
+              <Icon
+                source="chevron-right"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => navigation.navigate('WalksList', { petId: pet.id })}
+          >
+            <View style={styles.listItemContent}>
+              <Icon
+                source="walk"
+                size={24}
+                color="#10B981"
+              />
+              <View style={styles.listTextContainer}>
+                <Text style={[styles.listTitle, { color: theme.colors.onSurface }]}>Diario de Paseos</Text>
+                <Text style={[styles.listDescription, { color: theme.colors.onSurfaceVariant }]}>Registro de actividad física</Text>
+              </View>
+              <Icon
+                source="chevron-right"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={() => navigation.navigate('IncidentsList', { petId: pet.id })}
+          >
+            <View style={styles.listItemContent}>
+              <Icon
+                source="alert-circle"
+                size={24}
+                color="#F59E0B"
+              />
+              <View style={styles.listTextContainer}>
+                <Text style={[styles.listTitle, { color: theme.colors.onSurface }]}>Incidentes</Text>
+                <Text style={[styles.listDescription, { color: theme.colors.onSurfaceVariant }]}>Registro para el veterinario</Text>
+              </View>
+              <Icon
+                source="chevron-right"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
         </Card>
       </ScrollView>
     </View>

@@ -22,7 +22,6 @@ import {
   Button,
   RadioButton,
   Text,
-  SegmentedButtons,
   Chip,
   Divider,
   useTheme,
@@ -42,20 +41,25 @@ import {
 } from '../../services/notificationService';
 import { RootStackParamList, ReminderType } from '../../types';
 import { spacing } from '../../constants/theme';
+import { TypeSelector } from '../../components/forms';
 import { useDialog } from '../../contexts/DialogContext';
 
 type AddReminderScreenProp = NativeStackNavigationProp<RootStackParamList>;
 type AddReminderRouteProp = RouteProp<RootStackParamList, 'AddReminder'>;
 
 const REMINDER_TYPES: { value: ReminderType; label: string; icon: string }[] = [
-  { value: 'MEDICATION', label: 'Medicación', icon: 'pill' },
   { value: 'HYGIENE', label: 'Higiene', icon: 'shower' },
+  { value: 'GROOMING', label: 'Peluquería', icon: 'content-cut' },
   { value: 'FOOD', label: 'Alimentación', icon: 'food-drumstick' },
+  { value: 'WALK', label: 'Paseo', icon: 'walk' },
+  { value: 'TRAINING', label: 'Entrenamiento', icon: 'dog-side' },
   { value: 'OTHER', label: 'Otros', icon: 'dots-horizontal' },
 ];
 
 const FREQUENCIES = [
   { value: 'ONCE', label: 'Una vez' },
+  { value: 'EVERY_8_HOURS', label: 'Cada 8 horas' },
+  { value: 'EVERY_12_HOURS', label: 'Cada 12 horas' },
   { value: 'DAILY', label: 'Diaria' },
   { value: 'EVERY_TWO_DAYS', label: 'Cada 2 días' },
   { value: 'EVERY_THREE_DAYS', label: 'Cada 3 días' },
@@ -80,8 +84,8 @@ export default function AddReminderScreen() {
   // Datos del formulario
   const [selectedPetId, setSelectedPetId] = useState<string>('');
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<ReminderType>('MEDICATION');
-  const [frequency, setFrequency] = useState<'ONCE' | 'DAILY' | 'EVERY_TWO_DAYS' | 'EVERY_THREE_DAYS' | 'WEEKLY' | 'MONTHLY'>('ONCE');
+  const [type, setType] = useState<ReminderType>('HYGIENE');
+  const [frequency, setFrequency] = useState<'ONCE' | 'EVERY_8_HOURS' | 'EVERY_12_HOURS' | 'DAILY' | 'EVERY_TWO_DAYS' | 'EVERY_THREE_DAYS' | 'WEEKLY' | 'MONTHLY'>('ONCE');
   const [notes, setNotes] = useState('');
 
   // Fecha y hora
@@ -361,16 +365,12 @@ export default function AddReminderScreen() {
 
         {/* Tipo */}
         <View style={styles.section}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Tipo de recordatorio
-          </Text>
-          <SegmentedButtons
+          <TypeSelector
+            items={REMINDER_TYPES}
             value={type}
-            onValueChange={(value) => setType(value as ReminderType)}
-            buttons={REMINDER_TYPES.map((t) => ({
-              value: t.value,
-              label: t.label,
-            }))}
+            onValueChange={setType}
+            label="Tipo de recordatorio"
+            columns={3}
           />
         </View>
 
