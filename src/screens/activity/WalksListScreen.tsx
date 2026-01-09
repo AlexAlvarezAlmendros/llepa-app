@@ -5,22 +5,23 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import {
   Text,
   useTheme,
   FAB,
-  Chip,
   Icon,
 } from 'react-native-paper';
 import { useRoute, useNavigation, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { spacing } from '../../constants/theme';
 import { Card, Loading } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
 import { usePetStore } from '../../store/petStore';
 import { useDialog } from '../../contexts/DialogContext';
-import { PetsStackParamList, Walk, WalkType } from '../../types';
+import { PetsStackParamList, Walk, WalkType, RouteCoordinate } from '../../types';
 import {
   getPetWalks,
   deleteWalk,
@@ -55,6 +56,143 @@ const MOOD_ICONS: Record<string, { icon: string; color: string }> = {
   TIRED: { icon: 'emoticon-sad', color: '#F59E0B' },
   EXCITED: { icon: 'emoticon-excited', color: '#8B5CF6' },
 };
+
+// Estilo de mapa oscuro para las miniaturas
+const darkMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#212121' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#212121' }] },
+  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#2c2c2c' }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#373737' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#000000' }] },
+];
+
+// Componente de mini mapa para mostrar la ruta
+const MiniRouteMap = ({ 
+  coordinates, 
+  primaryColor 
+}: { 
+  coordinates: RouteCoordinate[]; 
+  primaryColor: string;
+}) => {
+  if (coordinates.length === 0) return null;
+
+  // Calcular la región para centrar el mapa
+  let minLat = coordinates[0].latitude;
+  let maxLat = coordinates[0].latitude;
+  let minLng = coordinates[0].longitude;
+  let maxLng = coordinates[0].longitude;
+
+  coordinates.forEach((coord) => {
+    minLat = Math.min(minLat, coord.latitude);
+    maxLat = Math.max(maxLat, coord.latitude);
+    minLng = Math.min(minLng, coord.longitude);
+    maxLng = Math.max(maxLng, coord.longitude);
+  });
+
+  const midLat = (minLat + maxLat) / 2;
+  const midLng = (minLng + maxLng) / 2;
+  const deltaLat = Math.max((maxLat - minLat) * 1.1, 0.0008);
+  const deltaLng = Math.max((maxLng - minLng) * 1.1, 0.0008);
+
+  return (
+    <View style={miniMapStyles.container}>
+      <MapView
+        style={miniMapStyles.map}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        customMapStyle={darkMapStyle}
+        userInterfaceStyle="dark"
+        region={{
+          latitude: midLat,
+          longitude: midLng,
+          latitudeDelta: deltaLat,
+          longitudeDelta: deltaLng,
+        }}
+        scrollEnabled={false}
+        zoomEnabled={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+        toolbarEnabled={false}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        showsScale={false}
+        showsIndoors={false}
+        showsTraffic={false}
+        showsBuildings={false}
+        showsPointsOfInterest={false}
+      >
+        <Polyline
+          coordinates={coordinates}
+          strokeColor={primaryColor}
+          strokeWidth={3}
+        />
+        {/* Marcador de inicio */}
+        <Marker
+          coordinate={coordinates[0]}
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View style={[miniMapStyles.marker, { backgroundColor: '#10B981' }]} />
+        </Marker>
+        {/* Marcador de fin */}
+        <Marker
+          coordinate={coordinates[coordinates.length - 1]}
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View style={[miniMapStyles.marker, { backgroundColor: '#EF4444' }]} />
+        </Marker>
+      </MapView>
+      {/* Overlay para hacer tap en toda el área */}
+      <View style={miniMapStyles.overlay}>
+        <View style={miniMapStyles.tapHint}>
+          <Icon source="map-search" size={16} color="#FFFFFF" />
+          <Text style={miniMapStyles.tapHintText}>Ver ruta</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const miniMapStyles = StyleSheet.create({
+  container: {
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    padding: spacing.sm,
+  },
+  tapHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 4,
+  },
+  tapHintText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  marker: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+});
 
 const WalksListScreen = () => {
   const theme = useTheme();
@@ -133,11 +271,42 @@ const WalksListScreen = () => {
 
   const renderWalkItem = ({ item }: { item: Walk }) => {
     const moodInfo = item.mood ? MOOD_ICONS[item.mood] : null;
+    const hasRoute = item.routeCoordinates && item.routeCoordinates.length > 0;
+    
+    // Obtener nombres de acompañantes
+    const getCompanionNames = () => {
+      if (!item.companionPetIds || item.companionPetIds.length === 0) return null;
+      
+      // Si es un paseo de acompañante, mostrar la mascota principal
+      if (item.isCompanionWalk && item.originalPetId) {
+        const originalPet = pets.find(p => p.id === item.originalPetId);
+        const otherCompanions = item.companionPetIds
+          .filter(id => id !== petId)
+          .map(id => pets.find(p => p.id === id)?.name)
+          .filter(Boolean);
+        
+        if (originalPet) {
+          const allNames = [originalPet.name, ...otherCompanions];
+          return allNames.join(', ');
+        }
+      }
+      
+      // Si es el paseo principal, mostrar acompañantes
+      const names = item.companionPetIds
+        .map(id => pets.find(p => p.id === id)?.name)
+        .filter(Boolean);
+      return names.join(', ');
+    };
+    
+    const companionNames = getCompanionNames();
 
     return (
       <Card style={styles.walkCard}>
         <TouchableOpacity
-          onPress={() => navigation.navigate('AddWalk', { petId, walkId: item.id })}
+          onPress={() => hasRoute 
+            ? navigation.navigate('RouteView', { petId, walkId: item.id })
+            : navigation.navigate('AddWalk', { petId, walkId: item.id })
+          }
           onLongPress={() => handleDelete(item)}
         >
           <View style={styles.walkHeader}>
@@ -149,9 +318,19 @@ const WalksListScreen = () => {
               />
             </View>
             <View style={styles.walkInfo}>
-              <Text style={[styles.walkType, { color: theme.colors.onSurface }]}>
-                {WALK_TYPE_LABELS[item.type]}
-              </Text>
+              <View style={styles.walkTitleRow}>
+                <Text style={[styles.walkType, { color: theme.colors.onSurface }]}>
+                  {WALK_TYPE_LABELS[item.type]}
+                </Text>
+                {hasRoute && (
+                  <View style={[styles.routeBadge, { backgroundColor: theme.colors.tertiaryContainer }]}>
+                    <Icon source="map-marker-path" size={12} color={theme.colors.onTertiaryContainer} />
+                    <Text style={[styles.routeBadgeText, { color: theme.colors.onTertiaryContainer }]}>
+                      Ruta
+                    </Text>
+                  </View>
+                )}
+              </View>
               <Text style={[styles.walkDate, { color: theme.colors.onSurfaceVariant }]}>
                 {formatDate(item.date.toDate())}
               </Text>
@@ -161,21 +340,48 @@ const WalksListScreen = () => {
             )}
           </View>
 
+          {/* Acompañantes */}
+          {companionNames && (
+            <View style={[styles.companionRow, { backgroundColor: theme.colors.primaryContainer }]}>
+              <Icon source="account-group" size={16} color={theme.colors.onPrimaryContainer} />
+              <Text style={[styles.companionText, { color: theme.colors.onPrimaryContainer }]}>
+                {item.isCompanionWalk ? 'Paseó con' : 'Con'}: {companionNames}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.statsRow}>
-            <Chip icon="clock-outline" mode="outlined" compact style={styles.statChip}>
-              {formatDuration(item.durationMinutes)}
-            </Chip>
+            <View style={[styles.statBox, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Icon source="clock-outline" size={16} color={theme.colors.primary} />
+              <Text style={[styles.statBoxText, { color: theme.colors.onSurface }]}>
+                {formatDuration(item.durationMinutes)}
+              </Text>
+            </View>
             {item.distanceKm && (
-              <Chip icon="map-marker-distance" mode="outlined" compact style={styles.statChip}>
-                {item.distanceKm.toFixed(1)} km
-              </Chip>
+              <View style={[styles.statBox, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Icon source="map-marker-distance" size={16} color={theme.colors.secondary} />
+                <Text style={[styles.statBoxText, { color: theme.colors.onSurface }]}>
+                  {item.distanceKm.toFixed(1)} km
+                </Text>
+              </View>
             )}
             {item.steps && (
-              <Chip icon="shoe-print" mode="outlined" compact style={styles.statChip}>
-                {item.steps.toLocaleString()} pasos
-              </Chip>
+              <View style={[styles.statBox, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Icon source="shoe-print" size={16} color={theme.colors.tertiary} />
+                <Text style={[styles.statBoxText, { color: theme.colors.onSurface }]}>
+                  {item.steps.toLocaleString()}
+                </Text>
+              </View>
             )}
           </View>
+
+          {/* Mini mapa con la ruta */}
+          {hasRoute && (
+            <MiniRouteMap 
+              coordinates={item.routeCoordinates!} 
+              primaryColor={theme.colors.primary}
+            />
+          )}
 
           {item.notes && (
             <Text style={[styles.notes, { color: theme.colors.onSurfaceVariant }]}>
@@ -335,22 +541,61 @@ const styles = StyleSheet.create({
   walkInfo: {
     flex: 1,
   },
+  walkTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   walkType: {
     fontSize: 16,
+    fontWeight: '600',
+  },
+  routeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    gap: 2,
+  },
+  routeBadgeText: {
+    fontSize: 10,
     fontWeight: '600',
   },
   walkDate: {
     fontSize: 12,
     marginTop: 2,
   },
-  statsRow: {
+  companionRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
     gap: spacing.xs,
   },
-  statChip: {
-    height: 28,
+  companionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  statBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+    gap: spacing.xs,
+  },
+  statBoxText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   notes: {
     fontSize: 14,

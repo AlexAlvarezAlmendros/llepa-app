@@ -18,6 +18,7 @@ import AddTrainingScreen from '../screens/activity/AddTrainingScreen';
 import WalksListScreen from '../screens/activity/WalksListScreen';
 import ActiveWalkScreen from '../screens/activity/ActiveWalkScreen';
 import AddWalkScreen from '../screens/activity/AddWalkScreen';
+import RouteViewScreen from '../screens/activity/RouteViewScreen';
 import IncidentsListScreen from '../screens/activity/IncidentsListScreen';
 import AddIncidentScreen from '../screens/activity/AddIncidentScreen';
 
@@ -118,6 +119,14 @@ const PetsNavigator = () => {
         name="AddWalk"
         component={AddWalkScreen}
         options={{ title: 'Registrar Paseo' }}
+      />
+      <Stack.Screen
+        name="RouteView"
+        component={RouteViewScreen}
+        options={{ 
+          title: 'Ver Ruta',
+          headerShown: false,
+        }}
       />
       {/* Gamificación: Incidentes */}
       <Stack.Screen

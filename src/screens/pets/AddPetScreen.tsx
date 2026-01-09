@@ -25,6 +25,7 @@ import { useImagePicker } from '../../hooks';
 import { PetsStackParamList } from '../../types';
 import { z } from 'zod';
 import { useDialog } from '../../contexts/DialogContext';
+import { uploadImageToImgbb, generateImageName } from '../../services/imgbbService';
 
 type AddPetNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'AddPet'>;
 
@@ -35,7 +36,7 @@ const AddPetScreen = () => {
   const navigation = useNavigation<AddPetNavigationProp>();
   const { user } = useAuthStore();
   const { addPet } = usePetStore();
-  const { showDialog, showSuccess, showError } = useDialog();
+  const { showDialog, showSuccess, showError, hideDialog } = useDialog();
   
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -68,9 +69,9 @@ const AddPetScreen = () => {
       message: 'Elige una opción',
       type: 'info',
       buttons: [
-        { text: 'Cancelar', style: 'cancel', onPress: () => {} },
-        { text: 'Tomar foto', onPress: takePhoto },
-        { text: 'Elegir de galería', onPress: pickImage },
+        { text: 'Cancelar', style: 'cancel', onPress: hideDialog },
+        { text: 'Tomar foto', onPress: () => { hideDialog(); takePhoto(); } },
+        { text: 'Elegir de galería', onPress: () => { hideDialog(); pickImage(); } },
       ],
     });
   };
@@ -81,8 +82,16 @@ const AddPetScreen = () => {
     try {
       setLoading(true);
       
-      // TODO: Subir foto a Firebase Storage si existe photoUri
-      const photoUrl = photoUri || undefined;
+      // Subir foto a imgbb si existe
+      let photoUrl: string | undefined;
+      if (photoUri) {
+        try {
+          photoUrl = await uploadImageToImgbb(photoUri, generateImageName('pet'));
+        } catch (uploadError) {
+          console.error('Error subiendo imagen:', uploadError);
+          // Continuar sin foto si falla la subida
+        }
+      }
 
       // Convertir Date a Timestamp de Firestore
       const petData = {

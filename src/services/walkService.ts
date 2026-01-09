@@ -83,6 +83,24 @@ export const createWalk = async (
 
   const id = await createPetSubcollectionDoc(userId, petId, COLLECTION_NAME, dataToCreate);
 
+  // Si hay mascotas acompañantes, crear una copia del paseo en cada una
+  if (walkData.companionPetIds && walkData.companionPetIds.length > 0) {
+    for (const companionPetId of walkData.companionPetIds) {
+      const companionWalkData = {
+        ...walkData,
+        petId: companionPetId,
+        userId,
+        isCompanionWalk: true,
+        originalPetId: petId,
+        // Los acompañantes incluyen la mascota principal
+        companionPetIds: [petId, ...walkData.companionPetIds.filter(id => id !== companionPetId)],
+        createdAt: now,
+      };
+      await createPetSubcollectionDoc(userId, companionPetId, COLLECTION_NAME, companionWalkData);
+      logger.info('🚶 Paseo copiado a acompañante', { companionPetId });
+    }
+  }
+
   logger.success('✅ Paseo registrado', { walkId: id });
 
   return {

@@ -7,6 +7,7 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  ActivityIndicator,
 } from 'react-native';
 import { Text, useTheme, IconButton, Portal, Modal, Button as PaperButton } from 'react-native-paper';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -30,8 +31,112 @@ interface LocationPoint {
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
-const LATITUDE_DELTA = 0.002; // Zoom más cercano (antes 0.005)
+const LATITUDE_DELTA = 0.01; // Zoom más alejado para ver el área
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
+
+// Estilo de mapa oscuro para Google Maps
+const darkMapStyle = [
+  {
+    elementType: 'geometry',
+    stylers: [{ color: '#212121' }],
+  },
+  {
+    elementType: 'labels.icon',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#212121' }],
+  },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'administrative.country',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9e9e9e' }],
+  },
+  {
+    featureType: 'administrative.land_parcel',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#bdbdbd' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#181818' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#616161' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#1b1b1b' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#2c2c2c' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#8a8a8a' }],
+  },
+  {
+    featureType: 'road.arterial',
+    elementType: 'geometry',
+    stylers: [{ color: '#373737' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#3c3c3c' }],
+  },
+  {
+    featureType: 'road.highway.controlled_access',
+    elementType: 'geometry',
+    stylers: [{ color: '#4e4e4e' }],
+  },
+  {
+    featureType: 'road.local',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#616161' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#000000' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#3d3d3d' }],
+  },
+];
 
 const ActiveWalkScreen = () => {
   const theme = useTheme();
@@ -52,12 +157,13 @@ const ActiveWalkScreen = () => {
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   
   // Datos del paseo
   const [routeCoordinates, setRouteCoordinates] = useState<LocationPoint[]>([]);
   const [currentLocation, setCurrentLocation] = useState<LocationPoint | null>(null);
   const [steps, setSteps] = useState(0);
-  const [initialSteps, setInitialSteps] = useState(0);
+  const [stepsBeforePause, setStepsBeforePause] = useState(0); // Pasos acumulados antes de pausar
   const [distance, setDistance] = useState(0); // en metros
   const [elapsedTime, setElapsedTime] = useState(0); // en segundos
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -80,11 +186,14 @@ const ActiveWalkScreen = () => {
         accuracy: Location.Accuracy.High,
       });
       
-      setCurrentLocation({
+      const newLocation = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         timestamp: Date.now(),
-      });
+      };
+      
+      setCurrentLocation(newLocation);
+      setIsLoadingLocation(false);
     };
 
     setupLocation();
@@ -187,19 +296,10 @@ const ActiveWalkScreen = () => {
     // Iniciar podómetro si está disponible
     const isPedometerAvailable = await Pedometer.isAvailableAsync();
     if (isPedometerAvailable) {
-      // Obtener pasos actuales como referencia
-      const end = new Date();
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      
-      try {
-        const result = await Pedometer.getStepCountAsync(start, end);
-        setInitialSteps(result.steps);
-      } catch (e) {
-        console.log('Error obteniendo pasos iniciales:', e);
-      }
-
+      // watchStepCount devuelve pasos desde que se inicia la suscripción
+      // así que simplemente mostramos esos pasos directamente
       pedometerSubscription.current = Pedometer.watchStepCount((result) => {
+        // result.steps son los pasos desde que se inició el watch
         setSteps(result.steps);
       });
     }
@@ -209,6 +309,10 @@ const ActiveWalkScreen = () => {
   const pauseTracking = () => {
     setIsPaused(true);
     
+    // Guardar los pasos actuales antes de pausar
+    setStepsBeforePause((prev) => prev + steps);
+    setSteps(0); // Resetear para el próximo watchStepCount
+    
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -216,6 +320,10 @@ const ActiveWalkScreen = () => {
 
     locationSubscription.current?.remove();
     locationSubscription.current = null;
+    
+    // Detener podómetro al pausar
+    pedometerSubscription.current?.remove();
+    pedometerSubscription.current = null;
   };
 
   // Reanudar tracking
@@ -226,6 +334,14 @@ const ActiveWalkScreen = () => {
     timerRef.current = setInterval(() => {
       setElapsedTime((prev) => prev + 1);
     }, 1000);
+    
+    // Reiniciar podómetro
+    const isPedometerAvailable = await Pedometer.isAvailableAsync();
+    if (isPedometerAvailable) {
+      pedometerSubscription.current = Pedometer.watchStepCount((result) => {
+        setSteps(result.steps);
+      });
+    }
 
     // Reiniciar tracking de ubicación
     locationSubscription.current = await Location.watchPositionAsync(
@@ -293,7 +409,7 @@ const ActiveWalkScreen = () => {
       petId,
       trackingData: {
         routeCoordinates: routeCoordinates.map(p => ({ latitude: p.latitude, longitude: p.longitude })),
-        steps,
+        steps: steps + stepsBeforePause, // Total de pasos incluyendo pausas
         distanceKm: distance / 1000,
         durationMinutes: Math.round(elapsedTime / 60),
         startTime: startTime?.toISOString(),
@@ -329,42 +445,72 @@ const ActiveWalkScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Mapa */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={
-          currentLocation
-            ? {
-                ...currentLocation,
-                latitudeDelta: LATITUDE_DELTA,
-                longitudeDelta: LONGITUDE_DELTA,
-              }
-            : undefined
-        }
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        followsUserLocation={isTracking && !isPaused}
-      >
-        {/* Ruta del paseo */}
-        {routeCoordinates.length > 1 && (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor={theme.colors.primary}
-            strokeWidth={4}
-          />
-        )}
-        
-        {/* Marcador de inicio */}
-        {routeCoordinates.length > 0 && (
-          <Marker
-            coordinate={routeCoordinates[0]}
-            title="Inicio"
-            pinColor="#10B981"
-          />
-        )}
-      </MapView>
+      {/* Loading mientras se obtiene ubicación */}
+      {isLoadingLocation ? (
+        <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.loadingCard, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.loadingIconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+              <Text style={styles.loadingEmoji}>📍</Text>
+            </View>
+            <Text style={[styles.loadingTitle, { color: theme.colors.onSurface }]}>
+              Preparando el paseo
+            </Text>
+            <Text style={[styles.loadingSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Obteniendo tu ubicación GPS...
+            </Text>
+            <ActivityIndicator 
+              size="large" 
+              color={theme.colors.primary} 
+              style={styles.loadingSpinner}
+            />
+            <Text style={[styles.loadingHint, { color: theme.colors.onSurfaceVariant }]}>
+              🐾 Paseando con {pet?.name}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        /* Mapa */
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          customMapStyle={darkMapStyle}
+          userInterfaceStyle="dark"
+          region={
+            currentLocation
+              ? {
+                  latitude: currentLocation.latitude,
+                  longitude: currentLocation.longitude,
+                  latitudeDelta: LATITUDE_DELTA,
+                  longitudeDelta: LONGITUDE_DELTA,
+                }
+              : undefined
+          }
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          followsUserLocation={false}
+          scrollEnabled={!isTracking || isPaused}
+          zoomEnabled={!isTracking || isPaused}
+        >
+          {/* Ruta del paseo */}
+          {routeCoordinates.length > 1 && (
+            <Polyline
+              coordinates={routeCoordinates}
+              strokeColor={theme.colors.primary}
+              strokeWidth={4}
+            />
+          )}
+          
+          {/* Marcador de inicio */}
+          {routeCoordinates.length > 0 && (
+            <Marker
+              coordinate={routeCoordinates[0]}
+              title="Inicio"
+              pinColor="#10B981"
+            />
+          )}
+        </MapView>
+      )}
 
       {/* HUD - Panel de información */}
       <View style={[styles.hudContainer, { backgroundColor: theme.colors.surface }]}>
@@ -396,7 +542,7 @@ const ActiveWalkScreen = () => {
               Pasos
             </Text>
             <Text style={[styles.hudValue, { color: theme.colors.onSurface }]}>
-              {steps.toLocaleString()}
+              {(steps + stepsBeforePause).toLocaleString()}
             </Text>
           </View>
         </View>
@@ -612,6 +758,54 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     minWidth: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  loadingCard: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 24,
+    padding: spacing.xl,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  loadingIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  loadingEmoji: {
+    fontSize: 36,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  loadingSpinner: {
+    marginVertical: spacing.lg,
+  },
+  loadingHint: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

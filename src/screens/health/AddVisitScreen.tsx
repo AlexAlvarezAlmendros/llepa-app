@@ -22,6 +22,7 @@ import { spacing } from '../../constants/theme';
 import { Loading } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
 import { createVisit, getVisit, updateVisit } from '../../services/vetVisitService';
+import { uploadImageToImgbb, generateImageName } from '../../services/imgbbService';
 import { PetsStackParamList } from '../../types';
 
 type AddVisitRouteProp = RouteProp<PetsStackParamList, 'AddVisit'>;
@@ -196,10 +197,15 @@ const AddVisitScreen = () => {
     try {
       let attachmentUrl: string | undefined = undefined;
 
-      // Guardar URI local de la imagen (sin subir a Firebase Storage)
+      // Subir imagen a imgbb si hay una nueva
       if (imageUri) {
-        attachmentUrl = imageUri;
-        console.log('📸 Guardando referencia de imagen local:', attachmentUrl);
+        try {
+          attachmentUrl = await uploadImageToImgbb(imageUri, generateImageName('visit'));
+          console.log('📸 Imagen subida a imgbb:', attachmentUrl);
+        } catch (uploadError) {
+          console.error('Error subiendo imagen:', uploadError);
+          // Continuar sin foto si falla la subida
+        }
       } else if (existingImageUrl) {
         // Mantener la imagen existente si no se seleccionó una nueva
         attachmentUrl = existingImageUrl;

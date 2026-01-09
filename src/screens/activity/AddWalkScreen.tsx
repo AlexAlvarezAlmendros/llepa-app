@@ -5,8 +5,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  TouchableOpacity,
 } from 'react-native';
-import { Text, useTheme, SegmentedButtons, Banner, Icon } from 'react-native-paper';
+import { Text, useTheme, SegmentedButtons, Banner, Icon, Chip, Avatar } from 'react-native-paper';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Timestamp } from 'firebase/firestore';
@@ -78,11 +80,14 @@ const AddWalkScreen = () => {
 
   const { petId, walkId, trackingData } = route.params;
   const pet = pets.find((p) => p.id === petId);
+  const otherPets = pets.filter((p) => p.id !== petId); // Mascotas que pueden ser acompañantes
   const isEditing = !!walkId;
   const isFromTracking = !!trackingData;
 
   // Estado para guardar la ruta del tracking
   const [routeCoordinates, setRouteCoordinates] = useState<RouteCoordinate[]>([]);
+  // Estado para mascotas acompañantes
+  const [companionPetIds, setCompanionPetIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditing);
@@ -106,6 +111,15 @@ const AddWalkScreen = () => {
   });
 
   const durationMinutes = watch('durationMinutes');
+
+  // Toggle selección de acompañante
+  const toggleCompanion = (companionId: string) => {
+    setCompanionPetIds(prev => 
+      prev.includes(companionId)
+        ? prev.filter(id => id !== companionId)
+        : [...prev, companionId]
+    );
+  };
 
   useEffect(() => {
     if (isEditing && user) {
@@ -172,6 +186,7 @@ const AddWalkScreen = () => {
         distanceKm: data.distanceKm,
         steps: data.steps,
         routeCoordinates: routeCoordinates.length > 0 ? routeCoordinates : undefined,
+        companionPetIds: companionPetIds.length > 0 ? companionPetIds : undefined,
         mood: data.mood as any,
         weather: data.weather as any,
         notes: data.notes,
@@ -238,6 +253,70 @@ const AddWalkScreen = () => {
             )}
           />
         </Card>
+
+        {/* Acompañantes */}
+        {otherPets.length > 0 && !isEditing && (
+          <Card style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              🐾 ¿Quién más fue al paseo?
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Selecciona las mascotas que acompañaron a {pet?.name}
+            </Text>
+            <View style={styles.companionsGrid}>
+              {otherPets.map((companion) => {
+                const isSelected = companionPetIds.includes(companion.id);
+                return (
+                  <TouchableOpacity
+                    key={companion.id}
+                    onPress={() => toggleCompanion(companion.id)}
+                    style={[
+                      styles.companionItem,
+                      { 
+                        backgroundColor: isSelected 
+                          ? theme.colors.primaryContainer 
+                          : theme.colors.surfaceVariant,
+                        borderColor: isSelected 
+                          ? theme.colors.primary 
+                          : 'transparent',
+                      }
+                    ]}
+                  >
+                    {companion.photoUrl ? (
+                      <Image 
+                        source={{ uri: companion.photoUrl }} 
+                        style={styles.companionAvatar} 
+                      />
+                    ) : (
+                      <View style={[styles.companionAvatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
+                        <Text style={styles.companionAvatarText}>
+                          {companion.name.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <Text 
+                      style={[
+                        styles.companionName, 
+                        { color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant }
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {companion.name}
+                    </Text>
+                    {isSelected && (
+                      <Icon source="check-circle" size={16} color={theme.colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {companionPetIds.length > 0 && (
+              <Text style={[styles.companionHint, { color: theme.colors.primary }]}>
+                ✓ Este paseo se guardará también en el perfil de {companionPetIds.length === 1 ? 'la mascota seleccionada' : `las ${companionPetIds.length} mascotas seleccionadas`}
+              </Text>
+            )}
+          </Card>
+        )}
 
         {/* Tipo de paseo */}
         <Card style={styles.section}>
@@ -425,6 +504,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: spacing.sm,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    marginBottom: spacing.md,
+  },
+  companionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  companionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 24,
+    borderWidth: 2,
+    gap: spacing.sm,
+  },
+  companionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  companionAvatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  companionAvatarText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  companionName: {
+    fontSize: 14,
+    fontWeight: '500',
+    maxWidth: 80,
+  },
+  companionHint: {
+    fontSize: 13,
+    marginTop: spacing.md,
+    fontWeight: '500',
   },
   durationPresetsRow: {
     flexDirection: 'row',

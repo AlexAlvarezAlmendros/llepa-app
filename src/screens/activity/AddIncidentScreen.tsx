@@ -27,7 +27,7 @@ import {
   updateIncident,
   getIncident,
 } from '../../services/incidentService';
-import { uploadImage } from '../../services/storageService';
+import { uploadImageToImgbb, generateImageName } from '../../services/imgbbService';
 
 type AddIncidentRouteProp = RouteProp<PetsStackParamList, 'AddIncident'>;
 type AddIncidentNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'AddIncident'>;
@@ -178,12 +178,14 @@ const AddIncidentScreen = () => {
     try {
       let photoUrl = existingPhotoUrl || undefined;
 
-      // Subir foto si hay una nueva
+      // Subir foto a imgbb si hay una nueva
       if (photoUri) {
-        photoUrl = await uploadImage(
-          photoUri,
-          `users/${user.uid}/pets/${petId}/incidents`
-        );
+        try {
+          photoUrl = await uploadImageToImgbb(photoUri, generateImageName('incident'));
+        } catch (uploadError) {
+          console.error('Error subiendo imagen:', uploadError);
+          // Continuar sin foto si falla la subida
+        }
       }
 
       const incidentData = {

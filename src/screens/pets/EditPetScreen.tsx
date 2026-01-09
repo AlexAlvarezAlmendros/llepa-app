@@ -28,6 +28,7 @@ import { z } from 'zod';
 import { StackActions } from '@react-navigation/native';
 import { useDialog } from '../../contexts/DialogContext';
 import { createReminder, getUserReminders, deleteReminder, updateReminder } from '../../services/reminderService';
+import { uploadImageToImgbb, generateImageName } from '../../services/imgbbService';
 
 type EditPetRouteProp = RouteProp<PetsStackParamList, 'EditPet'>;
 type EditPetNavigationProp = NativeStackNavigationProp<PetsStackParamList, 'EditPet'>;
@@ -40,7 +41,7 @@ const EditPetScreen = () => {
   const route = useRoute<EditPetRouteProp>();
   const { user } = useAuthStore();
   const { pets, updateExistingPet, removePet } = usePetStore();
-  const { showDialog, showError, showSuccess, showDestructiveConfirm } = useDialog();
+  const { showDialog, showError, showSuccess, showDestructiveConfirm, hideDialog } = useDialog();
   
   const { petId } = route.params;
   const pet = pets.find((p) => p.id === petId);
@@ -132,13 +133,13 @@ const EditPetScreen = () => {
 
   const showImageOptions = () => {
     const buttons = [
-      { text: 'Cancelar', style: 'cancel' as const, onPress: () => {} },
-      { text: 'Tomar foto', onPress: takePhoto },
-      { text: 'Elegir de galería', onPress: pickImage },
+      { text: 'Cancelar', style: 'cancel' as const, onPress: hideDialog },
+      { text: 'Tomar foto', onPress: () => { hideDialog(); takePhoto(); } },
+      { text: 'Elegir de galería', onPress: () => { hideDialog(); pickImage(); } },
     ];
     
     if (photoUri) {
-      buttons.push({ text: 'Eliminar foto', style: 'destructive' as const, onPress: () => setPhotoUri(null) });
+      buttons.push({ text: 'Eliminar foto', style: 'destructive' as const, onPress: () => { hideDialog(); setPhotoUri(null); } });
     }
     
     showDialog({
@@ -254,29 +255,41 @@ const EditPetScreen = () => {
     try {
       setLoading(true);
       
-      // TODO: Subir nueva foto a Firebase Storage si cambió photoUri
-      const photoUrl = photoUri || undefined;
+      // Subir nueva foto a imgbb si cambió
+      let photoUrl: string | null = pet.photoUrl || null;
+      if (photoUri && photoUri !== pet.photoUrl) {
+        try {
+          photoUrl = await uploadImageToImgbb(photoUri, generateImageName('pet'));
+        } catch (uploadError) {
+          console.error('Error subiendo imagen:', uploadError);
+          // Mantener la foto anterior si falla la subida
+        }
+      } else if (!photoUri) {
+        photoUrl = null;
+      }
 
       // Construir objeto food solo si hay datos de alimentación
-      const food = data.foodBrand || data.foodType || data.foodPurchaseAmount || data.foodDailyAmount
+      const hasFood = data.foodBrand || data.foodType || data.foodPurchaseAmount || data.foodDailyAmount;
+      const food = hasFood
         ? {
             brand: data.foodBrand || '',
-            type: data.foodType,
+            type: data.foodType || null,
             purchaseAmount: data.foodPurchaseAmount || 0,
             dailyAmount: data.foodDailyAmount || 0,
-            alertDays: data.foodAlertDays,
-            lastPurchaseDate: pet.food?.lastPurchaseDate, // Mantener la fecha de compra existente
+            alertDays: data.foodAlertDays || null,
+            lastPurchaseDate: pet.food?.lastPurchaseDate || null,
           }
-        : undefined;
+        : null; // Usar null en lugar de undefined para Firebase
 
       // Convertir Date a Timestamp de Firestore
-      const updates = {
+      // Firebase no acepta undefined, así que usamos null para campos opcionales
+      const updates: Record<string, any> = {
         name: data.name,
         species: data.species,
-        breed: data.breed,
+        breed: data.breed || null,
         birthDate: Timestamp.fromDate(data.birthDate),
-        weight: data.weight,
-        chipNumber: data.chipNumber,
+        weight: data.weight || null,
+        chipNumber: data.chipNumber || null,
         photoUrl,
         food,
       };

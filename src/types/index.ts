@@ -117,6 +117,9 @@ export interface Walk {
   distanceKm?: number; // Distancia en km (opcional, si usa podómetro)
   steps?: number; // Pasos (opcional, si integra con podómetro)
   routeCoordinates?: RouteCoordinate[]; // Ruta del paseo (GPS)
+  companionPetIds?: string[]; // IDs de mascotas acompañantes
+  isCompanionWalk?: boolean; // true si este registro es una copia para un acompañante
+  originalPetId?: string; // ID de la mascota principal (solo si isCompanionWalk = true)
   notes?: string;
   mood?: 'HAPPY' | 'NORMAL' | 'TIRED' | 'EXCITED'; // Estado de ánimo durante el paseo
   weather?: 'SUNNY' | 'CLOUDY' | 'RAINY' | 'COLD' | 'HOT';
@@ -238,6 +241,7 @@ export type PetsStackParamList = {
   WalksList: { petId: string };
   ActiveWalk: { petId: string }; // Pantalla de tracking en tiempo real
   AddWalk: { petId: string; walkId?: string; trackingData?: WalkTrackingData };
+  RouteView: { petId: string; walkId: string }; // Ver y rehacer ruta
   // Gamificación: Incidentes
   IncidentsList: { petId: string };
   AddIncident: { petId: string; incidentId?: string };
