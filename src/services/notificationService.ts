@@ -6,23 +6,78 @@
  * - Programar notificaciones
  * - Cancelar notificaciones
  * - Reprogramación automática para frecuencias cada 2/3 días
+ * - Integración con preferencias de usuario
+ * - Modo No Molestar
  */
 
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { useNotificationStore } from '../store/notificationStore';
+import { ReminderType } from '../types';
 
 // Subscription para el listener de notificaciones recibidas
 let notificationReceivedSubscription: Notifications.Subscription | null = null;
+let notificationResponseSubscription: Notifications.Subscription | null = null;
+
+// Callback para cuando el usuario toca una notificación
+type NotificationResponseCallback = (response: Notifications.NotificationResponse) => void;
+let notificationResponseCallback: NotificationResponseCallback | null = null;
 
 /**
  * Configurar el comportamiento de las notificaciones
+ * Integrado con las preferencias del usuario
  */
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    const preferences = useNotificationStore.getState().preferences;
+    
+    // Verificar si las notificaciones están habilitadas
+    if (!preferences.enabled) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+    
+    // Verificar modo No Molestar
+    const now = new Date();
+    const isInDoNotDisturb = useNotificationStore.getState().isInDoNotDisturbPeriod(now);
+    
+    if (isInDoNotDisturb) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: true, // Mantener badge para ver después
+        shouldShowBanner: false,
+        shouldShowList: true,
+      };
+    }
+    
+    // Verificar si el tipo de notificación está habilitado
+    const data = notification.request.content.data;
+    const type = data?.reminderType as ReminderType | undefined;
+    
+    if (type && !useNotificationStore.getState().isTypeEnabled(type)) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+    
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: preferences.sound,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 /**
@@ -39,53 +94,149 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
     }
 
     if (finalStatus !== 'granted') {
-
+      useNotificationStore.getState().setPermissionStatus('denied');
       return false;
     }
 
-    // Configurar canal en Android
+    // Configurar canales en Android
     if (Platform.OS === 'android') {
+      // Canal principal para recordatorios
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Recordatorios',
+        description: 'Recordatorios de medicación, citas y cuidados',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#4F46E5',
+        enableVibrate: true,
+        enableLights: true,
+      });
+      
+      // Canal para medicación urgente
+      await Notifications.setNotificationChannelAsync('medication', {
+        name: 'Medicación',
+        description: 'Recordatorios de medicación importantes',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 250, 500],
+        lightColor: '#EF4444',
+        enableVibrate: true,
+        enableLights: true,
+        sound: 'default',
+      });
+      
+      // Canal para citas veterinarias
+      await Notifications.setNotificationChannelAsync('vet_appointment', {
+        name: 'Citas Veterinarias',
+        description: 'Recordatorios de citas veterinarias',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#10B981',
+        enableVibrate: true,
+        enableLights: true,
+      });
+      
+      // Canal para vacunas
+      await Notifications.setNotificationChannelAsync('vaccine', {
+        name: 'Vacunas',
+        description: 'Recordatorios de vacunación',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#F59E0B',
+        enableVibrate: true,
+        enableLights: true,
       });
     }
 
+    useNotificationStore.getState().setPermissionStatus('granted');
     return true;
   } catch (error) {
-
+    console.error('[Notifications] Error requesting permissions:', error);
     return false;
   }
 };
 
 /**
+ * Obtener el canal de Android según el tipo de recordatorio
+ */
+const getChannelId = (type?: ReminderType): string => {
+  if (Platform.OS !== 'android') return 'default';
+  
+  switch (type) {
+    case 'MEDICATION':
+    case 'ANTIPARASITIC':
+      return 'medication';
+    case 'VET_APPOINTMENT':
+      return 'vet_appointment';
+    case 'VACCINE':
+      return 'vaccine';
+    default:
+      return 'default';
+  }
+};
+
+/**
  * Programar una notificación local
+ * Respeta las preferencias del usuario
  */
 export const scheduleNotification = async (
   title: string,
   body: string,
   scheduledDate: Date,
-  data?: any
-): Promise<string> => {
+  data?: { reminderType?: ReminderType; reminderId?: string; petId?: string; petName?: string; [key: string]: any }
+): Promise<string | null> => {
   try {
+    const preferences = useNotificationStore.getState().preferences;
+    const type = data?.reminderType;
+    
+    // Verificar si las notificaciones están habilitadas
+    if (!preferences.enabled) {
+      console.log('[Notifications] Notifications disabled, skipping schedule');
+      return null;
+    }
+    
+    // Verificar si el tipo está habilitado
+    if (type && !useNotificationStore.getState().isTypeEnabled(type)) {
+      console.log(`[Notifications] Type ${type} disabled, skipping schedule`);
+      return null;
+    }
+    
+    // Aplicar tiempo de anticipación si corresponde
+    let adjustedDate = new Date(scheduledDate);
+    if (type && preferences.typePreferences[type]) {
+      const advanceMinutes = preferences.typePreferences[type].advanceMinutes;
+      if (advanceMinutes > 0) {
+        adjustedDate = new Date(adjustedDate.getTime() - advanceMinutes * 60 * 1000);
+      }
+    }
+    
+    // No programar si la fecha ya pasó
+    if (adjustedDate <= new Date()) {
+      console.log('[Notifications] Date is in the past, skipping schedule');
+      return null;
+    }
+    
+    const channelId = getChannelId(type);
+    
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
-        data: data || {},
-        sound: true,
+        data: {
+          ...data,
+          scheduledAt: scheduledDate.toISOString(),
+        },
+        sound: preferences.sound,
+        badge: 1,
       },
       trigger: {
-        channelId: 'default',
-        date: scheduledDate,
+        channelId,
+        date: adjustedDate,
       },
     });
 
+    console.log(`[Notifications] Scheduled notification ${notificationId} for ${adjustedDate.toLocaleString()}`);
     return notificationId;
   } catch (error: any) {
-
+    console.error('[Notifications] Error scheduling notification:', error);
     throw new Error(`Error al programar notificación: ${error.message}`);
   }
 };
@@ -93,6 +244,7 @@ export const scheduleNotification = async (
 /**
  * Programar notificación recurrente
  * Para frecuencias no soportadas nativamente (cada 2/3 días, cada 8/12h), programamos solo la próxima notificación
+ * Respeta las preferencias del usuario
  */
 export const scheduleRecurringNotification = async (
   title: string,
@@ -100,9 +252,25 @@ export const scheduleRecurringNotification = async (
   frequency: 'EVERY_8_HOURS' | 'EVERY_12_HOURS' | 'DAILY' | 'EVERY_TWO_DAYS' | 'EVERY_THREE_DAYS' | 'WEEKLY' | 'MONTHLY',
   hour: number,
   minute: number,
-  data?: any
-): Promise<string> => {
+  data?: { reminderType?: ReminderType; reminderId?: string; petId?: string; petName?: string; [key: string]: any }
+): Promise<string | null> => {
   try {
+    const preferences = useNotificationStore.getState().preferences;
+    const type = data?.reminderType;
+    
+    // Verificar si las notificaciones están habilitadas
+    if (!preferences.enabled) {
+      console.log('[Notifications] Notifications disabled, skipping recurring schedule');
+      return null;
+    }
+    
+    // Verificar si el tipo está habilitado
+    if (type && !useNotificationStore.getState().isTypeEnabled(type)) {
+      console.log(`[Notifications] Type ${type} disabled, skipping recurring schedule`);
+      return null;
+    }
+    
+    const channelId = getChannelId(type);
     let trigger: any;
 
     switch (frequency) {
@@ -342,17 +510,36 @@ const rescheduleIntervalNotification = async (notification: Notifications.Notifi
  * Inicializar el listener para reprogramar notificaciones cada 2/3 días
  * Debe llamarse al iniciar la app
  */
-export const initializeNotificationListeners = () => {
-  // Evitar duplicar el listener
+export const initializeNotificationListeners = (
+  onNotificationResponse?: NotificationResponseCallback
+) => {
+  // Evitar duplicar los listeners
   if (notificationReceivedSubscription) {
     notificationReceivedSubscription.remove();
   }
+  if (notificationResponseSubscription) {
+    notificationResponseSubscription.remove();
+  }
   
-  // Escuchar cuando se recibe una notificación
+  // Guardar el callback para respuestas
+  notificationResponseCallback = onNotificationResponse || null;
+  
+  // Escuchar cuando se recibe una notificación (en primer plano)
   notificationReceivedSubscription = Notifications.addNotificationReceivedListener(
     async (notification) => {
+      console.log('[Notifications] Notification received:', notification.request.content.title);
       // Reprogramar si es una notificación con frecuencia cada 2/3 días
       await rescheduleIntervalNotification(notification);
+    }
+  );
+  
+  // Escuchar cuando el usuario toca una notificación
+  notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener(
+    (response) => {
+      console.log('[Notifications] User tapped notification:', response.notification.request.content.title);
+      if (notificationResponseCallback) {
+        notificationResponseCallback(response);
+      }
     }
   );
   
@@ -367,5 +554,168 @@ export const cleanupNotificationListeners = () => {
   if (notificationReceivedSubscription) {
     notificationReceivedSubscription.remove();
     notificationReceivedSubscription = null;
+  }
+  if (notificationResponseSubscription) {
+    notificationResponseSubscription.remove();
+    notificationResponseSubscription = null;
+  }
+  notificationResponseCallback = null;
+};
+
+/**
+ * Verificar si los permisos de notificaciones están concedidos
+ */
+export const checkNotificationPermissions = async (): Promise<boolean> => {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    const granted = status === 'granted';
+    useNotificationStore.getState().setPermissionStatus(
+      granted ? 'granted' : status === 'denied' ? 'denied' : 'undetermined'
+    );
+    return granted;
+  } catch (error) {
+    console.error('[Notifications] Error checking permissions:', error);
+    return false;
+  }
+};
+
+/**
+ * Obtener el estado del badge
+ */
+export const getBadgeCount = async (): Promise<number> => {
+  try {
+    return await Notifications.getBadgeCountAsync();
+  } catch (error) {
+    console.error('[Notifications] Error getting badge count:', error);
+    return 0;
+  }
+};
+
+/**
+ * Establecer el badge de la app
+ */
+export const setBadgeCount = async (count: number): Promise<void> => {
+  try {
+    await Notifications.setBadgeCountAsync(count);
+  } catch (error) {
+    console.error('[Notifications] Error setting badge count:', error);
+  }
+};
+
+/**
+ * Limpiar el badge de la app
+ */
+export const clearBadge = async (): Promise<void> => {
+  await setBadgeCount(0);
+};
+
+/**
+ * Cancelar notificaciones por reminderId
+ */
+export const cancelNotificationsByReminderId = async (reminderId: string): Promise<void> => {
+  try {
+    const scheduled = await getAllScheduledNotifications();
+    const toCancel = scheduled.filter(
+      (n) => n.content.data?.reminderId === reminderId
+    );
+    
+    await Promise.all(
+      toCancel.map((n) => cancelNotification(n.identifier))
+    );
+    
+    console.log(`[Notifications] Cancelled ${toCancel.length} notifications for reminder ${reminderId}`);
+  } catch (error) {
+    console.error('[Notifications] Error cancelling notifications by reminderId:', error);
+  }
+};
+
+/**
+ * Obtener estadísticas de notificaciones programadas
+ */
+export const getNotificationStats = async (): Promise<{
+  total: number;
+  byType: Record<string, number>;
+  nextScheduled: Date | null;
+}> => {
+  try {
+    const scheduled = await getAllScheduledNotifications();
+    
+    const byType: Record<string, number> = {};
+    let nextScheduled: Date | null = null;
+    
+    for (const notification of scheduled) {
+      // Contar por tipo
+      const type = (notification.content.data?.reminderType as string) || 'OTHER';
+      byType[type] = (byType[type] || 0) + 1;
+      
+      // Encontrar la próxima notificación
+      const trigger = notification.trigger;
+      if (trigger && 'date' in trigger && trigger.date) {
+        const triggerDate = new Date(trigger.date);
+        if (!nextScheduled || triggerDate < nextScheduled) {
+          nextScheduled = triggerDate;
+        }
+      }
+    }
+    
+    return {
+      total: scheduled.length,
+      byType,
+      nextScheduled,
+    };
+  } catch (error) {
+    console.error('[Notifications] Error getting stats:', error);
+    return { total: 0, byType: {}, nextScheduled: null };
+  }
+};
+
+/**
+ * Reprogramar todas las notificaciones (útil después de cambiar preferencias)
+ * Esta función obtiene los recordatorios activos y reprograma sus notificaciones
+ */
+export const refreshAllNotifications = async (
+  getActiveReminders: () => Promise<Array<{
+    id: string;
+    title: string;
+    petName?: string;
+    type: ReminderType;
+    scheduledAt: Date;
+    frequency?: string;
+  }>>
+): Promise<void> => {
+  try {
+    const preferences = useNotificationStore.getState().preferences;
+    
+    if (!preferences.enabled) {
+      await cancelAllNotifications();
+      console.log('[Notifications] All notifications cancelled (notifications disabled)');
+      return;
+    }
+    
+    // Cancelar notificaciones existentes
+    await cancelAllNotifications();
+    
+    // Obtener recordatorios activos y reprogramar
+    const reminders = await getActiveReminders();
+    
+    for (const reminder of reminders) {
+      const body = reminder.petName
+        ? `${reminder.title} - ${reminder.petName}`
+        : reminder.title;
+      
+      await scheduleNotification(
+        '🔔 Recordatorio',
+        body,
+        reminder.scheduledAt,
+        {
+          reminderType: reminder.type,
+          reminderId: reminder.id,
+        }
+      );
+    }
+    
+    console.log(`[Notifications] Refreshed ${reminders.length} notifications`);
+  } catch (error) {
+    console.error('[Notifications] Error refreshing notifications:', error);
   }
 };

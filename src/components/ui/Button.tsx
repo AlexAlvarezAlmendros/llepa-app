@@ -11,6 +11,9 @@ interface ButtonProps {
   loading?: boolean;
   icon?: string;
   style?: any;
+  textColor?: string;
+  buttonColor?: string;
+  compact?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -21,6 +24,9 @@ const Button: React.FC<ButtonProps> = ({
   loading = false,
   icon,
   style,
+  textColor,
+  buttonColor,
+  compact,
 }) => {
   return (
     <PaperButton
@@ -31,6 +37,9 @@ const Button: React.FC<ButtonProps> = ({
       icon={icon}
       style={[styles.button, style]}
       contentStyle={styles.content}
+      textColor={textColor}
+      buttonColor={buttonColor}
+      compact={compact}
     >
       {children}
     </PaperButton>

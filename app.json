@@ -39,7 +39,12 @@
         "android.permission.RECORD_AUDIO"
       ],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC0-QSARH05ghhNDxNRfukYiTw9Z14-erU"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -73,7 +78,8 @@
     "extra": {
       "eas": {
         "projectId": "b1a8ebf1-3ed3-4683-9d8e-783046605aa7"
-      }
+      },
+      "imgbbApiKey": "445e7f85f526a9049476741ae147dd73"
     }
   }
 }

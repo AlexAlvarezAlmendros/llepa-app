@@ -1,19 +1,26 @@
 import React from 'react';
-import { ActivityIndicator, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { View, StyleSheet } from 'react-native';
+import { spacing } from '../../constants/theme';
 
-interface LoadingProps {
+export interface LoadingProps {
   size?: 'small' | 'large' | number;
   fullScreen?: boolean;
+  message?: string;
 }
 
-const Loading: React.FC<LoadingProps> = ({ size = 'large', fullScreen = false }) => {
+const Loading: React.FC<LoadingProps> = ({ size = 'large', fullScreen = false, message }) => {
   const theme = useTheme();
   
-  if (fullScreen) {
+  if (fullScreen || message) {
     return (
       <View style={[styles.fullScreen, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size={size} color={theme.colors.primary} />
+        {message && (
+          <Text style={[styles.message, { color: theme.colors.onSurfaceVariant }]}>
+            {message}
+          </Text>
+        )}
       </View>
     );
   }
@@ -26,6 +33,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  message: {
+    marginTop: spacing.md,
+    fontSize: 16,
   },
 });
 

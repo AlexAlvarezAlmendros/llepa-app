@@ -1,9 +1,9 @@
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 
 // API Key de imgbb desde variables de entorno
-const IMGBB_API_KEY = Constants.expoConfig?.extra?.imgbbApiKey || process.env.EXPO_PUBLIC_IMGBB_API_KEY || '';
+const IMGBB_API_KEY = Constants.expoConfig?.extra?.imgbbApiKey || process.env.IMGBB_API_KEY || '';
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
 
 interface ImgbbResponse {
@@ -58,7 +58,7 @@ export const uploadImageToImgbb = async (
   try {
     // Verificar que la API key esté configurada
     if (!IMGBB_API_KEY) {
-      throw new Error('Por favor configura EXPO_PUBLIC_IMGBB_API_KEY en tu archivo .env');
+      throw new Error('Por favor configura imgbbApiKey en app.json extra o IMGBB_API_KEY en tu archivo .env');
     }
 
     // Optimizar imagen antes de subir (reducir tamaño)

@@ -76,15 +76,27 @@ const MiniRouteMap = ({
   coordinates: RouteCoordinate[]; 
   primaryColor: string;
 }) => {
-  if (coordinates.length === 0) return null;
+  // Protección contra datos inválidos
+  if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) return null;
+  
+  // Verificar que las coordenadas sean válidas
+  const validCoordinates = coordinates.filter(
+    coord => coord && 
+    typeof coord.latitude === 'number' && 
+    typeof coord.longitude === 'number' &&
+    !isNaN(coord.latitude) && 
+    !isNaN(coord.longitude)
+  );
+  
+  if (validCoordinates.length < 2) return null;
 
-  // Calcular la región para centrar el mapa
-  let minLat = coordinates[0].latitude;
-  let maxLat = coordinates[0].latitude;
-  let minLng = coordinates[0].longitude;
-  let maxLng = coordinates[0].longitude;
+  // Calcular la región para centrar el mapa usando coordenadas válidas
+  let minLat = validCoordinates[0].latitude;
+  let maxLat = validCoordinates[0].latitude;
+  let minLng = validCoordinates[0].longitude;
+  let maxLng = validCoordinates[0].longitude;
 
-  coordinates.forEach((coord) => {
+  validCoordinates.forEach((coord) => {
     minLat = Math.min(minLat, coord.latitude);
     maxLat = Math.max(maxLat, coord.latitude);
     minLng = Math.min(minLng, coord.longitude);
@@ -124,20 +136,20 @@ const MiniRouteMap = ({
         showsPointsOfInterest={false}
       >
         <Polyline
-          coordinates={coordinates}
+          coordinates={validCoordinates}
           strokeColor={primaryColor}
           strokeWidth={3}
         />
         {/* Marcador de inicio */}
         <Marker
-          coordinate={coordinates[0]}
+          coordinate={validCoordinates[0]}
           anchor={{ x: 0.5, y: 0.5 }}
         >
           <View style={[miniMapStyles.marker, { backgroundColor: '#10B981' }]} />
         </Marker>
         {/* Marcador de fin */}
         <Marker
-          coordinate={coordinates[coordinates.length - 1]}
+          coordinate={validCoordinates[validCoordinates.length - 1]}
           anchor={{ x: 0.5, y: 0.5 }}
         >
           <View style={[miniMapStyles.marker, { backgroundColor: '#EF4444' }]} />

@@ -223,6 +223,13 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
+export type SettingsStackParamList = {
+  SettingsMain: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+  NotificationSettings: undefined;
+};
+
 export type PetsStackParamList = {
   PetsList: undefined;
   PetDetail: { petId: string };

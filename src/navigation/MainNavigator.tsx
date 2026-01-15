@@ -7,7 +7,7 @@ import { useTheme, Icon } from 'react-native-paper';
 // Importar navegadores de cada tab
 import TodayScreen from '../screens/dashboard/TodayScreen';
 import PetsNavigator from './PetsNavigator';
-import SettingsScreen from '../screens/settings/SettingsScreen';
+import SettingsNavigator from './SettingsNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -52,7 +52,7 @@ const MainNavigator = () => {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{
           tabBarLabel: 'Cuenta',
           tabBarIcon: ({ color, size }) => (

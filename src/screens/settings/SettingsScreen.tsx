@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { List, Divider, Dialog, Portal, Avatar, RadioButton, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '../../components/ui';
 import { spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useColorSchemeStore } from '../../hooks/useColorScheme';
+import { useNotificationStore } from '../../store/notificationStore';
 import { useDialog } from '../../contexts/DialogContext';
+import { SettingsStackParamList } from '../../types';
+
+type SettingsNavigationProp = NativeStackNavigationProp<SettingsStackParamList, 'SettingsMain'>;
 
 const SettingsScreen = () => {
   const { user, logout, loading } = useAuth();
   const theme = useTheme();
+  const navigation = useNavigation<SettingsNavigationProp>();
   const insets = useSafeAreaInsets();
   const { showAlert, showError } = useDialog();
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [themeDialogVisible, setThemeDialogVisible] = useState(false);
   
   const { themeMode, setThemeMode } = useColorSchemeStore();
+  const { preferences } = useNotificationStore();
 
   const handleLogout = async () => {
     try {
@@ -43,6 +51,12 @@ const SettingsScreen = () => {
     }
   };
 
+  const getNotificationStatus = () => {
+    if (!preferences.enabled) return 'Desactivadas';
+    if (preferences.permissionStatus !== 'granted') return 'Sin permisos';
+    return 'Activadas';
+  };
+
   const showLogoutDialog = () => setLogoutDialogVisible(true);
   const hideLogoutDialog = () => setLogoutDialogVisible(false);
   const showThemeDialog = () => setThemeDialogVisible(true);
@@ -52,12 +66,20 @@ const SettingsScreen = () => {
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header con información del usuario */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.lg, backgroundColor: theme.colors.surface }]}>
-        <Avatar.Icon
-          size={80}
-          icon="account"
-          style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-          color={theme.colors.onPrimary}
-        />
+        {user?.photoURL ? (
+          <Avatar.Image
+            size={80}
+            source={{ uri: user.photoURL }}
+            style={styles.avatar}
+          />
+        ) : (
+          <Avatar.Icon
+            size={80}
+            icon="account"
+            style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+            color={theme.colors.onPrimary}
+          />
+        )}
         <Text style={[styles.userName, { color: theme.colors.onSurface }]}>
           {user?.displayName || 'Usuario'}
         </Text>
@@ -74,10 +96,7 @@ const SettingsScreen = () => {
           description="Cambia tu nombre y foto"
           left={(props) => <List.Icon {...props} icon="account-edit" color={theme.colors.primary} />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            // TODO: Navegar a editar perfil
-            showAlert('Próximamente', 'Función en desarrollo');
-          }}
+          onPress={() => navigation.navigate('EditProfile')}
         />
         <Divider />
         <List.Item
@@ -85,10 +104,7 @@ const SettingsScreen = () => {
           description="Actualiza tu contraseña"
           left={(props) => <List.Icon {...props} icon="lock-reset" color={theme.colors.primary} />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            // TODO: Navegar a cambiar contraseña
-            showAlert('Próximamente', 'Función en desarrollo');
-          }}
+          onPress={() => navigation.navigate('ChangePassword')}
         />
       </View>
 
@@ -97,12 +113,16 @@ const SettingsScreen = () => {
         <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Preferencias</Text>
         <List.Item
           title="Notificaciones"
-          description="Gestiona tus notificaciones"
-          left={(props) => <List.Icon {...props} icon="bell" color={theme.colors.primary} />}
+          description={getNotificationStatus()}
+          left={(props) => (
+            <List.Icon 
+              {...props} 
+              icon={preferences.enabled && preferences.permissionStatus === 'granted' ? 'bell' : 'bell-off'} 
+              color={preferences.enabled && preferences.permissionStatus === 'granted' ? theme.colors.primary : theme.colors.outline} 
+            />
+          )}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            showAlert('Próximamente', 'Función en desarrollo');
-          }}
+          onPress={() => navigation.navigate('NotificationSettings')}
         />
         <Divider />
         <List.Item

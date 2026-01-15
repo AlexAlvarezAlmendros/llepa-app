@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Dialog, Portal, Text, Button, useTheme, Icon } from 'react-native-paper';
 import { spacing } from '../../constants/theme';
 
@@ -50,6 +50,9 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
   const theme = useTheme();
   const { icon, color } = getIconForType(type);
 
+  // Si hay más de 2 botones, apilarlos verticalmente
+  const shouldStack = buttons.length > 2;
+
   const getButtonStyle = (button: DialogButton) => {
     if (button.style === 'destructive') {
       return { buttonColor: theme.colors.error };
@@ -95,22 +98,28 @@ const CustomDialog: React.FC<CustomDialogProps> = ({
           </Text>
         </Dialog.Content>
 
-        <Dialog.Actions style={styles.actions}>
-          {buttons.map((button, index) => (
-            <Button
-              key={index}
-              mode={getButtonMode(button)}
-              onPress={() => {
-                button.onPress?.();
-                if (!button.onPress) onDismiss();
-              }}
-              style={styles.button}
-              labelStyle={styles.buttonLabel}
-              {...getButtonStyle(button)}
-            >
-              {button.text}
-            </Button>
-          ))}
+        <Dialog.Actions style={[styles.actions, shouldStack && styles.actionsStacked]}>
+          <ScrollView 
+            style={shouldStack ? styles.scrollView : undefined}
+            contentContainerStyle={shouldStack ? styles.scrollContent : styles.horizontalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {buttons.map((button, index) => (
+              <Button
+                key={index}
+                mode={getButtonMode(button)}
+                onPress={() => {
+                  button.onPress?.();
+                  if (!button.onPress) onDismiss();
+                }}
+                style={[styles.button, shouldStack && styles.buttonStacked]}
+                labelStyle={styles.buttonLabel}
+                {...getButtonStyle(button)}
+              >
+                {button.text}
+              </Button>
+            ))}
+          </ScrollView>
         </Dialog.Actions>
       </Dialog>
     </Portal>
@@ -121,6 +130,7 @@ const styles = StyleSheet.create({
   dialog: {
     borderRadius: 24,
     marginHorizontal: spacing.lg,
+    maxHeight: '80%',
   },
   iconContainer: {
     alignItems: 'center',
@@ -150,9 +160,29 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'center',
   },
+  actionsStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  scrollView: {
+    maxHeight: 200,
+  },
+  scrollContent: {
+    flexDirection: 'column',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  horizontalContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
   button: {
     borderRadius: 12,
     minWidth: 100,
+  },
+  buttonStacked: {
+    width: '100%',
   },
   buttonLabel: {
     fontWeight: '600',
