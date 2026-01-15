@@ -7,6 +7,8 @@ import SettingsScreen from '../screens/settings/SettingsScreen';
 import EditProfileScreen from '../screens/settings/EditProfileScreen';
 import ChangePasswordScreen from '../screens/settings/ChangePasswordScreen';
 import NotificationSettingsScreen from '../screens/settings/NotificationSettingsScreen';
+import HelpSupportScreen from '../screens/settings/HelpSupportScreen';
+import PrivacyPolicyScreen from '../screens/settings/PrivacyPolicyScreen';
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
@@ -50,6 +52,22 @@ const SettingsNavigator = () => {
         component={NotificationSettingsScreen}
         options={{ 
           title: 'Notificaciones',
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="HelpSupport"
+        component={HelpSupportScreen}
+        options={{ 
+          title: 'Ayuda y Soporte',
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ 
+          title: 'Privacidad',
           headerShown: true,
         }}
       />

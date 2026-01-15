@@ -228,6 +228,8 @@ export type SettingsStackParamList = {
   EditProfile: undefined;
   ChangePassword: undefined;
   NotificationSettings: undefined;
+  HelpSupport: undefined;
+  PrivacyPolicy: undefined;
 };
 
 export type PetsStackParamList = {

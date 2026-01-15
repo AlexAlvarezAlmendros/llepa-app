@@ -152,21 +152,18 @@ const SettingsScreen = () => {
         <Divider />
         <List.Item
           title="Ayuda y Soporte"
-          description="¿Necesitas ayuda?"
+          description="FAQs, contacto y más"
           left={(props) => <List.Icon {...props} icon="help-circle" color={theme.colors.primary} />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            showAlert('Próximamente', 'Función en desarrollo');
-          }}
+          onPress={() => navigation.navigate('HelpSupport')}
         />
         <Divider />
         <List.Item
           title="Políticas de Privacidad"
+          description="Cómo protegemos tus datos"
           left={(props) => <List.Icon {...props} icon="shield-account" color={theme.colors.primary} />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            showAlert('Próximamente', 'Función en desarrollo');
-          }}
+          onPress={() => navigation.navigate('PrivacyPolicy')}
         />
       </View>
 
