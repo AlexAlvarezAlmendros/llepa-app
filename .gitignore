@@ -6,6 +6,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# App config (contiene configuración específica del entorno)
+app.json
+
 # Firebase config files (contienen credenciales)
 google-services.json
 GoogleService-Info.plist
@@ -150,3 +153,6 @@ PROJECT_STATUS.md
 FIREBASE_SETUP.md
 DEVELOPMENT.md
 PHASE_3_PERFORMANCE.md
+app.json
+
+app.json
