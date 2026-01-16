@@ -1,4 +1,4 @@
-# llepa-app
+# kypaw
 
 Una aplicación móvil para la gestión integral de tus mascotas: historial médico, recordatorios, vacunas y más.
 
